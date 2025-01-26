@@ -3,24 +3,24 @@
   <component name="deploymentTargetSelector">
     <selectionStates>
       <SelectionState runConfigName="app">
-        <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-01-24T19:02:07.977364800Z">
+        <option name="selectionMode" value="DIALOG" />
+        <DropdownSelection timestamp="2025-01-25T19:06:32.321291400Z">
           <Target type="DEFAULT_BOOT">
-            <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=OBHYSKBAIZ85WOQK" />
-            </handle>
+            <template>
+              <DeviceId pluginId="FirebaseDirectAccess" type="TEMPLATE" identifier="model_id=F01L/27" />
+            </template>
           </Target>
         </DropdownSelection>
         <DialogSelection>
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=OBHYSKBAIZ85WOQK" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=zxwcsca65lgmprzt" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="PhysicalDevice" identifier="serial=zxwcsca65lgmprzt" />
+                <DeviceId pluginId="PhysicalDevice" identifier="serial=OBHYSKBAIZ85WOQK" />
               </handle>
             </Target>
           </targets>
@@ -28,7 +28,7 @@
       </SelectionState>
       <SelectionState runConfigName="MainActivity">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-01-23T22:11:58.946826100Z">
+        <DropdownSelection timestamp="2025-01-24T20:32:18.905224700Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=zxwcsca65lgmprzt" />
