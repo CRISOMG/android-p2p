@@ -13,47 +13,53 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.SocketManager.SocketManagerProvider
+
 
 @Composable
 fun DeviceList(
-    devices: List<WifiP2pDevice>,
-    onDeviceClick: (WifiP2pDevice, Int) -> Unit,
+    devices: MutableMap<String, ServiceInfo>,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier = modifier) {
-        items(devices) { device ->
-            DeviceItem(device, onClick = onDeviceClick )
+        items(devices.entries.toList()) { entry ->
+            val deviceName = entry.key
+            val serviceInfo = entry.value
+            DeviceItem(serviceInfo)
         }
     }
 }
 
 @Composable
 fun DeviceItem(
-    device: WifiP2pDevice,
-    onClick: (WifiP2pDevice, Int) -> Unit,
+    serviceInfo: ServiceInfo,
     modifier: Modifier = Modifier
 ) {
+
+    val socketManager = SocketManagerProvider.current
+
     Column(
         modifier = modifier
             .padding(8.dp)
     ) {
-        Text(text = "Name: ${device.deviceName}")
-        Text(text = "Address: ${device.deviceAddress}")
+        Text(text = "Name: ${serviceInfo.device.deviceName}")
+        Text(text = "Address: ${serviceInfo.device.deviceAddress}")
+        Text(text = "IP: ${serviceInfo.records["ip"]}")
 
         Row(
             modifier = Modifier.padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Button(
-                onClick = { onClick(device, 15) },
+                onClick = { socketManager.initClientSocket(serviceInfo.records["ip"] as String) },
                 modifier = Modifier.padding(end = 8.dp)
             ) {
-                Text(text = "Set GO (15)")
+                Text(text = "Connect Socket")
             }
             Button(
-                onClick = { onClick(device, 0) }
+                onClick = { socketManager.currSocketClient?.close() }
             ) {
-                Text(text = "Set GO (0)")
+                Text(text = "Close Socket")
             }
         }
     }
