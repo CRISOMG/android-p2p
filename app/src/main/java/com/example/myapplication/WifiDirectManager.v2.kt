@@ -8,107 +8,59 @@ import android.content.IntentFilter
 import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDevice
+import android.net.wifi.p2p.WifiP2pGroup
 import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import java.net.ServerSocket
-import java.net.Socket
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import kotlinx.serialization.Serializable
 
-object  SocketManager {
-    val SocketManagerProvider =
-        compositionLocalOf<SocketManager> { error("No SocketManager provided") }
-    val socketActive = mutableStateOf<Boolean>(value = false)
-    val clientSocketActive = mutableStateOf<Boolean>(value = false)
-    val serverSocketActive = mutableStateOf<Boolean>(value = false)
+data class ServiceInfo(
+    var records: MutableMap<String, Any?>?,
+    val device: WifiP2pDevice
+)
 
-    var currSocketClient: Socket? = null
-    var currSocketServer: ServerSocket? = null
-    fun initServerSocket() {
-        Thread {
-            try {
-                currSocketServer = ServerSocket(8888) // Use any port number
-                Log.d("SocketManager", "Server socket initialized. Waiting for clients...")
+val WifiP2PManagerProvider =
+    compositionLocalOf<WifiDirectManagerV2> { error("No WifiDirectManagerV2 provided") }
 
-                val clientSocket = currSocketServer!!.accept() // Wait for client connection
-                Log.d("SocketManager", "Client connected: ${clientSocket.inetAddress.hostAddress}")
 
-                // Example: Read and write data
-                val inputStream = clientSocket.getInputStream()
-                val outputStream = clientSocket.getOutputStream()
+@Serializable
+data class WifiP2pGroupSerializable(
+    val networkName: String?,
+    val ownerDeviceAddress: String?,
+    val isGroupOwner: Boolean,
+    val passphrase: String?,
+    val clients: List<String>?
+) {
+    companion object {
+        fun fromWifiP2pGroup(group: WifiP2pGroup?): WifiP2pGroupSerializable? {
+            if (group == null) return null
 
-                // Handle incoming data (Example: read a message)
-                val buffer = ByteArray(1024)
-                val bytesRead = inputStream.read(buffer)
-                val message = String(buffer, 0, bytesRead)
-                Log.d("SocketManager", "Message received: $message")
-
-                // Send a response
-                outputStream.write("Hello from server!".toByteArray())
-
-                // Close sockets
-                serverSocketActive.value = true
-            } catch (e: Exception) {
-                Log.e("SocketManager", "Error in server socket: ${e.message}")
-            } finally {
-            }
-        }.start()
-    }
-
-    fun initClientSocket(serverAddress: String) {
-        Thread {
-            try {
-                currSocketClient = Socket(serverAddress, 8888) // Use the same port number as the server
-                Log.d("SocketManager", "Connected to server: $serverAddress")
-
-                // Example: Send a message to the server
-                val outputStream = currSocketClient!!.getOutputStream()
-                outputStream.write("Hello from client!".toByteArray())
-
-                // Handle response from server
-                val inputStream = currSocketClient!!.getInputStream()
-                val buffer = ByteArray(1024)
-                val bytesRead = inputStream.read(buffer)
-                val response = String(buffer, 0, bytesRead)
-                Log.d("SocketManager", "Response from server: $response")
-                clientSocketActive.value = true
-            } catch (e: Exception) {
-                Log.e("SocketManager", "Error in client socket: ${e.message}")
-            } finally {
-            }
-        }.start()
-    }
-
-    fun initSockets(info: WifiP2pInfo) {
-        if (info.groupFormed) { // Check if a group is formed
-            Log.d("SocketInit", "groupFormed.")
-
-            if (info.isGroupOwner) {
-                Log.d("SocketInit", "initServerSocket.")
-
-                // Initialize the server socket on the group owner
-                initServerSocket()
-            } else {
-                Log.d("SocketInit", "initClientSocket.")
-                // Connect to the server socket on the group owner
-                info.groupOwnerAddress?.let { address ->
-                    initClientSocket(address.hostAddress)
-                }
-            }
-        } else {
-            Log.d("SocketInit", "No group formed yet.")
+            val clients = group.clientList?.map { it.deviceAddress } ?: emptyList()
+            return WifiP2pGroupSerializable(
+                networkName = group.networkName,
+                ownerDeviceAddress = group.owner?.deviceAddress,
+                isGroupOwner = group.isGroupOwner,
+                passphrase = group.passphrase,
+                clients = clients
+            )
         }
     }
 }
-data class ServiceInfo(
-    val records: Map<String, Any>,
-    val device:  WifiP2pDevice // Use the appropriate type for srcDevice
-)
+
 class WifiDirectManagerV2(
     private val context: Context,
     private val wifiP2pManager: WifiP2pManager,
@@ -116,9 +68,10 @@ class WifiDirectManagerV2(
     private val permissionManager: PermissionManager,
 ) {
     val discoveredDevices = mutableStateListOf<WifiP2pDevice>()
-
     val discoveredServices = mutableStateMapOf<String, ServiceInfo>()
 
+    val connectionInfo = mutableStateOf<WifiP2pInfo?>(null)
+    val currGroupState = mutableStateOf<WifiP2pGroup?>(null)
     fun handleOnActionListenerFailure(reason: Int) {
         when (reason) {
             WifiP2pManager.BUSY -> Log.e("WiFiP2P", "El dispositivo está ocupado.")
@@ -243,6 +196,33 @@ class WifiDirectManagerV2(
         })
     }
 
+
+    @SuppressLint("MissingPermission")
+    fun discoverPeers() {
+        wifiP2pManager.discoverPeers(channel, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() {
+                Log.d("WiFiP2P", "Descubrimiento de peers iniciado correctamente")
+            }
+
+            override fun onFailure(reason: Int) {
+                Log.e("WiFiP2P", "Error discoverPeers():")
+                handleOnActionListenerFailure(reason)
+            }
+        })
+    }
+    private val handler = Handler(Looper.getMainLooper())
+    private val discoveryRunnable = object : Runnable {
+        override fun run() {
+            discoverPeers()
+            handler.postDelayed(this, 10000) // Ejecutar cada 2 segundos
+        }
+    }
+    fun startDiscoveryLoop() {
+        handler.post(discoveryRunnable)
+    }
+    fun stopDiscoveryLoop() {
+        handler.removeCallbacks(discoveryRunnable)
+    }
     @SuppressLint("MissingPermission")
     fun getConnectedDevices() {
         Log.d(
@@ -258,51 +238,50 @@ class WifiDirectManagerV2(
             }"
         )
         permissionManager.hasLocationPermissions()
-        wifiP2pManager.discoverPeers(channel, object : WifiP2pManager.ActionListener {
-            override fun onSuccess() {
-                Log.d("WiFiP2P", "Discovery started successfully.")
-                wifiP2pManager.requestPeers(channel) { peers ->
-
-                    val pt = "10-0050F204-5"
-                    val targetDevices = peers.deviceList.filter { d -> d.primaryDeviceType == pt }
-                    val devicesString = targetDevices.joinToString {
-                        "${it.deviceName} (${
-                            getDeviceStatusDescription(it.status)
-                        })"
-                    }
-                    Log.d("WiFiP2P", "[getConnectedDevices]\nDiscovered Devices: $devicesString")
-
-                    discoveredDevices.clear()
-                    discoveredDevices.addAll(targetDevices)
-                }
+        wifiP2pManager.requestPeers(channel) { peers ->
+            val pt = "10-0050F204-5"
+            val targetDevices = peers.deviceList.filter { d -> d.primaryDeviceType == pt }
+            val devicesString = targetDevices.joinToString {
+                "${it.deviceName} (${
+                    getDeviceStatusDescription(it.status)
+                })"
             }
-
-            override fun onFailure(reason: Int) {
-                handleOnActionListenerFailure(reason)
+            Log.d("WiFiP2P", "[getConnectedDevices] Discovered Devices:\n$devicesString")
+            discoveredDevices.clear()
+            discoveredDevices.addAll(targetDevices)
+            discoveredServices.clear()
+            targetDevices.forEach { device ->
+                discoveredServices[device.deviceName] = ServiceInfo(
+                    records = discoveredServices[device.deviceName]?.records,
+                    device = device
+                )
             }
-        })
+        }
 
         wifiP2pManager.requestGroupInfo(channel) { group ->
-            if (group != null) {
-                val groupOwner = group.owner
-                val connectedClients = group.clientList
-
-                Log.d(
-                    "WiFiP2P",
-                    "Group Owner: ${groupOwner.deviceName} (${groupOwner.deviceAddress})"
-                )
-
-                val groupPassword = group.passphrase
-                val groupOwnerAddress = group.owner.deviceAddress
-                val groupMembers = group.clientList.joinToString { it.deviceName }
-
-                Log.d("WiFiP2P", "Group id: ${group.networkId}")
-                Log.d("WiFiP2P", "Group Password: $groupPassword")
-                Log.d("WiFiP2P", "Group Owner: $groupOwnerAddress")
-                Log.d("WiFiP2P", "Group Members: $groupMembers")
-            } else {
+            currGroupState.value = group
+            if (group == null) {
                 Log.d("WiFiP2P", "No group information available.")
+                return@requestGroupInfo
             }
+
+            val groupOwner = group.owner
+            val groupPassword = group.passphrase
+            val groupOwnerAddress = group.owner.deviceAddress
+            val groupMembers = group.clientList.joinToString { it.deviceName }
+            wifiP2pManager.requestConnectionInfo(channel) { info ->
+                connectionInfo.value = info
+                val devServ = discoveredServices.getOrPut(group.owner.deviceName) {
+                    ServiceInfo(records = null, device = group.owner)
+                }
+                devServ.records = devServ.records?.apply {
+                    this["g_ip"] = info.groupOwnerAddress.hostAddress
+                } ?: mutableMapOf("g_ip" to info.groupOwnerAddress.hostAddress)
+            }
+            Log.d("WiFiP2P", "Group id: ${group.networkId}")
+            Log.d("WiFiP2P", "Group Password: $groupPassword")
+            Log.d("WiFiP2P", "Group Owner: ${groupOwner.deviceName} ($groupOwnerAddress)")
+            Log.d("WiFiP2P", "Group Members: $groupMembers")
         }
     }
 
@@ -310,7 +289,17 @@ class WifiDirectManagerV2(
     private val peerChangeReceiver = object : BroadcastReceiver() {
         @SuppressLint("MissingPermission")
         override fun onReceive(context: Context?, intent: Intent?) {
-            Log.d("WiFiP2P", "[peerChangeReceiver] triggered ${intent?.action}")
+            val intentKey = intent?.action?.split(".")?.last()
+            Log.d("WiFiP2P", "[peerChangeReceiver] triggered by $intentKey")
+            wifiP2pManager.requestGroupInfo(channel) { group ->
+                currGroupState.value = group
+            }
+            wifiP2pManager.requestConnectionInfo(channel) { info ->
+                connectionInfo.value = info
+            }
+            if (intentKey == "PEERS_CHANGED") {
+                getConnectedDevices()
+            }
         }
     }
 
@@ -318,9 +307,8 @@ class WifiDirectManagerV2(
     private val serviceChangeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             wifiP2pManager.requestConnectionInfo(channel) { info ->
-                // Connection established, use info.groupOwnerAddress
                 Log.d("WiFiP2P", "[serviceChangeReceiver]: $info")
-//                getConnectedDevices()
+                connectionInfo.value = info
             }
         }
     }
@@ -386,7 +374,7 @@ class WifiDirectManagerV2(
                 Log.d("WiFiP2P", "Service TXT records: $txtRecordMap")
 
                 val serviceInfo = ServiceInfo(
-                    records = txtRecordMap,
+                    records = txtRecordMap.toMutableMap(),
                     device = srcDevice
                 )
                 discoveredServices[srcDevice.deviceName] = serviceInfo
@@ -436,13 +424,11 @@ class WifiDirectManagerV2(
     private val connectionChangeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             wifiP2pManager.requestConnectionInfo(channel) { info ->
-                // Connection established, use info.groupOwnerAddress
                 Log.d(
                     "WiFiDirectConnection",
                     "connectionChangeReceiver. Connected to device. Group owner: $info"
                 )
-                getConnectedDevices()
-//                socketManager.initSockets(info)
+                connectionInfo.value = info
             }
         }
     }
@@ -457,10 +443,10 @@ class WifiDirectManagerV2(
         }
         context.registerReceiver(peerChangeReceiver, intentFilter)
 
-        val serviceIntentFilter = IntentFilter().apply {
-            addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
-        }
-        context.registerReceiver(serviceChangeReceiver, serviceIntentFilter)
+//        val serviceIntentFilter = IntentFilter().apply {
+//            addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
+//        }
+//        context.registerReceiver(serviceChangeReceiver, serviceIntentFilter)
 
         val connectionIntentFilter = IntentFilter().apply {
             addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
@@ -470,6 +456,17 @@ class WifiDirectManagerV2(
 
     fun unregisterReceivers() {
         context.unregisterReceiver(peerChangeReceiver)
-        context.unregisterReceiver(serviceChangeReceiver)
+//        context.unregisterReceiver(serviceChangeReceiver)
     }
+}
+
+// Create a Gson instance
+val gson: Gson = GsonBuilder().setPrettyPrinting().create()
+
+@Composable
+fun DisplayGroupState(currGroupState: MutableState<WifiP2pGroup?>) {
+    // Convert the group state to JSON
+    val jsonString = currGroupState.value?.let { gson.toJson(it) } ?: "No group available"
+
+    Text(text = jsonString, style = MaterialTheme.typography.bodySmall)
 }

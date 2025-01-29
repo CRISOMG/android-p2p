@@ -1,5 +1,8 @@
 package com.example.myapplication
 
+//import com.google.accompanist.flowlayout.FlowRow
+//import androidx.compose.foundation.layout.FlowRow
+//import com.google.accompanist.flowlayout.FlowRow
 import android.content.Context
 import android.net.wifi.p2p.WifiP2pDevice
 import android.net.wifi.p2p.WifiP2pManager
@@ -8,25 +11,81 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
-import com.example.myapplication.SocketManager.SocketManagerProvider
+import kotlinx.coroutines.launch
+
+//import com.google.accompanist.flowlayout.FlowRow
+
+@Composable
+fun CustomButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    text: String = "Placeholder Text",
+    containerColor: Color = Color(0xffff7f50),
+    contentColor: Color = MaterialTheme.colorScheme.onPrimary,
+    contentPadding: PaddingValues = PaddingValues(4.dp),
+    elevation: ButtonElevation = ButtonDefaults.buttonElevation(), // Permite personalizar la elevación
+    border: BorderStroke? = null, // Permite agregar un borde opcional
+    enabled: Boolean = true, // Controla si el botón está habilitado
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.wrapContentSize(),
+        contentPadding = contentPadding,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor, contentColor = contentColor
+        ),
+        shape = MaterialTheme.shapes.extraSmall,
+        elevation = elevation,
+        border = border, // Usa el borde personalizado
+        enabled = enabled, // Controla si el botón está habilitado
+        // Add rounded corners (shape defined in your theme)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.wrapContentWidth(),
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+            color = Color.Black
+        )
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private lateinit var wifiDirectManager: WifiDirectManagerV2
@@ -40,8 +99,9 @@ class MainActivity : ComponentActivity() {
         wifiDirectManager = WifiDirectManagerV2(
             this,
             getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager,
-            (getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager)
-                .initialize(this, mainLooper, null),
+            (getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager).initialize(
+                this, mainLooper, null
+            ),
             permissionManager = permissionManager
         )
 
@@ -50,20 +110,20 @@ class MainActivity : ComponentActivity() {
         wifiDirectManager.registerReceivers()
         wifiDirectManager.advertiseService("MyCustomTag")
         wifiDirectManager.discoverServices()
+//        wifiDirectManager.startDiscoveryLoop()
 
         setContent {
-            MyApplicationTheme {
-                MainScreen(
-                    devices = wifiDirectManager.discoveredServices,
+            MyApplicationTheme(
+                darkTheme = true, dynamicColor = false
+            ) {
+                MainScreen(devices = wifiDirectManager.discoveredServices,
                     wifiP2PManager = wifiDirectManager,
                     onDiscoverDevices = {
                         Log.d("MainActivity", "Discover Devices button clicked")
-//                        wifiDirectManager.advertiseService("MyCustomTag")
-//                        wifiDirectManager.discoverServices()
+                        wifiDirectManager.discoveredServices.clear()
                         wifiDirectManager.getConnectedDevices()
                     },
                     onDeviceClick = { device, priori ->
-                        // Handle device click, e.g., connect to the device
                         Log.d("MainActivity", "Clicked on device: ${device.deviceName}")
                         wifiDirectManager.connectToDevice(device, priori)
                     })
@@ -73,28 +133,30 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-//        wifiDirectManager.discoverDevices()
         wifiDirectManager.registerReceivers()
         wifiDirectManager.advertiseService("MyCustomTag")
         wifiDirectManager.discoverServices()
+        wifiDirectManager.startDiscoveryLoop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         wifiDirectManager.disconnect()
         wifiDirectManager.unregisterReceivers()
+        wifiDirectManager.stopDiscoveryLoop()
     }
 
     override fun onPause() {
         super.onPause()
 //        wifiDirectManager.unregisterReceivers()
+        wifiDirectManager.stopDiscoveryLoop()
         wifiDirectManager.stopAdvertisingService()
         wifiDirectManager.stopDiscoveringServices()
     }
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(
     devices: MutableMap<String, ServiceInfo>,
@@ -102,163 +164,157 @@ fun MainScreen(
     onDiscoverDevices: () -> Unit,
     onDeviceClick: (WifiP2pDevice, Int) -> Unit
 ) {
-    val socketManager = remember { SocketManager }
-    CompositionLocalProvider(
-        SocketManagerProvider provides socketManager
-    ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
+    val output = remember { mutableStateOf("") }
+    ProvideSocketManager {
+        CompositionLocalProvider(
+            WifiP2PManagerProvider provides wifiP2PManager
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
             ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                Button(
-                    onClick = {
-//                    wifiP2PManager.unregisterReceivers()
-                        wifiP2PManager.stopAdvertisingService()
-                        wifiP2PManager.stopDiscoveringServices()
-
-                        wifiP2PManager.registerReceivers()
-                        wifiP2PManager.advertiseService("MyCustomTag")
-                        wifiP2PManager.discoverServices()
-                    },
+                Column(
                     modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xffff7f50),
-                        contentColor = Color.Black,
-                    )
+                        .padding(innerPadding)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()) // Make the entire content scrollable
                 ) {
-                    Text(
-                        text = "Discovery",
-                        color = Color.Black,
-                        style = TextStyle(
-                            color = Color.Black
+                    // FlowRow for buttons
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalArrangement = Arrangement.Top
+                    ) {
+                        CustomButton(
+                            onClick = {
+                                wifiP2PManager.stopAdvertisingService()
+                                wifiP2PManager.stopDiscoveringServices()
+                                wifiP2PManager.registerReceivers()
+                                wifiP2PManager.advertiseService("MyCustomTag")
+                                wifiP2PManager.discoverServices()
+                            }, text = "Discovery", modifier = Modifier.padding(2.dp)
                         )
-                    )
 
-                }
-                Button(
-                    onClick = onDiscoverDevices,
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xffff7f50),
-                        contentColor = Color.Black,
-                    )
-                ) {
-                    Text(
-                        text = "Refresh",
-                        color = Color.Black,
-                        style = TextStyle(
-                            color = Color.Black
+                        CustomButton(
+                            onClick = onDiscoverDevices,
+                            text = "Refresh",
+                            modifier = Modifier.padding(2.dp)
                         )
-                    )
+                        CustomButton(
+                            onClick = { wifiP2PManager.cancelConnectionToDevice() },
+                            text = "Cancel Connection",
+                            modifier = Modifier.padding(2.dp)
+                        )
+                        CustomButton(
+                            onClick = { wifiP2PManager.removePersistentGroups() },
+                            text = "Force remove groups",
+                            modifier = Modifier.padding(2.dp)
+                        )
 
-                }
-                Button(
-                    onClick = { wifiP2PManager.cancelConnectionToDevice() },
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xffff7f50),
-                        contentColor = Color.Black,
-                    )
-                ) {
-                    Text(
-                        text = "Cancel Connection",
-                        color = Color.Black,
-                        style = TextStyle(color = Color.Black)
-                    )
-                }
-                Button(
-                    onClick = { wifiP2PManager.removePersistentGroups() },
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xffff7f50),
-                        contentColor = Color.Black,
-                    )
-                ) {
-                    Text(
-                        text = "Force remove groups",
-                        color = Color.Black,
-                        style = TextStyle(color = Color.Black)
-                    )
-                }
-                Button(
-                    onClick = { wifiP2PManager.disconnect() },
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xffff7f50),
-                        contentColor = Color.Black,
-                    )
-                ) {
-                    Text(
-                        text = "Remove group",
-                        color = Color.Black,
-                        style = TextStyle(color = Color.Black)
-                    )
-                }
-                Button(
-                    onClick = { wifiP2PManager.createGroup() },
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xffff7f50),
-                        contentColor = Color.Black,
-                    )
-                ) {
-                    Text(
-                        text = "Create group",
-                        color = Color.Black,
-                        style = TextStyle(color = Color.Black)
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        if (!socketManager.serverSocketActive.value) {
-                            socketManager.initServerSocket()
+                        if (wifiP2PManager.connectionInfo.value?.groupFormed == true) {
+                            CustomButton(
+                                onClick = { wifiP2PManager.disconnect() },
+                                text = "Remove group",
+                                modifier = Modifier.padding(2.dp)
+                            )
                         } else {
-                            socketManager.currSocketServer?.close()
-                            socketManager.currSocketServer?.accept()?.close()
+                            CustomButton(
+                                onClick = { wifiP2PManager.createGroup() },
+                                text = "Create group",
+                                modifier = Modifier.padding(2.dp)
+                            )
                         }
-                    },
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xffff7f50),
-                        contentColor = Color.Black,
-                    )
-                ) {
-                    Text(
-                        text = socketManager.socketActive.value.let {
-                            if (it) "Close Server Socket" else "Create Server Socket"
-                        } ,
-                        color = Color.Black,
-                        style = TextStyle(color = Color.Black)
-                    )
-                }
 
-                // Device list below the button
-                DeviceList(
-                    devices = devices,
-                    modifier = Modifier.fillMaxSize()
-                )
+                        val socketManager = SocketManagerProvider.current
+                        CustomButton(
+                            onClick = {
+                                if (!socketManager.serverSocketActive.value) {
+                                    socketManager.initServerSocket()
+                                } else {
+                                    try {
+                                        socketManager.closeSockets()
+                                        Log.d("SocketManager", "Server sockets closed.")
+                                    } catch (e: Exception) {
+                                        Log.e(
+                                            "SocketManager",
+                                            "Error closing server socket: ${e.message}"
+                                        )
+                                    }
+                                }
+                            },
+                            text = if (socketManager.serverSocketActive.value) "Close Server Socket" else "Create Server Socket",
+                            modifier = Modifier.padding(2.dp)
+                        )
+                    }
+
+                    // Logcat and DeviceList
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text("LOGCAT:")
+
+                        val scrollState = rememberScrollState()
+                        val coroutineScope = rememberCoroutineScope()
+
+                        LaunchedEffect(output.value) {
+                            scrollState.animateScrollTo(scrollState.maxValue)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                                .verticalScroll(scrollState)
+                                .padding(8.dp)
+                        ) {
+                            Text(output.value, style = MaterialTheme.typography.bodySmall)
+                        }
+
+                        Row {
+                            CustomButton(
+                                onClick = { output.value = ""; handleSetLogcat(output) },
+                                text = "Capture Logcat"
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            CustomButton(onClick = { output.value = "" }, text = "Clear")
+                            Spacer(modifier = Modifier.width(16.dp))
+                            CustomButton(onClick = {
+                                coroutineScope.launch {
+                                    scrollState.animateScrollTo(scrollState.maxValue)
+                                }
+                            }, text = "Down")
+                        }
+                    }
+
+                    DeviceList(
+                        devices = devices,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp)
+                            .padding(16.dp)
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        val socketManager = SocketManagerProvider.current
+                        Row {
+                            ServerUI(socketManager, modifier = Modifier.heightIn(max = 400.dp))
+                        }
+                        Row {
+                            ClientUI(socketManager, modifier = Modifier.heightIn(max = 400.dp))
+                        }
+                    }
+                }
             }
         }
     }
+
 
 }
 
