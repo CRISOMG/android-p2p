@@ -1,7 +1,8 @@
-package com.example.myapplication
+package com.devcrisomg.wifip2p_custom_app
 
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,13 +10,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -26,7 +34,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.OutputStream
 
 
 open class LogsViewModel : ViewModel() {
@@ -99,21 +106,18 @@ fun captureLogcat(outputCallback: (String) -> Unit) {
 
         val packageName = "com.example.myapplication" // Replace with your package name
         val tags = listOf("WiFiP2P", "WiFiDirect", "WiFiDirectConnection", "SocketInit", "SocketManager", "WifiP2pManager")
-        val logcatCommand = mutableListOf("logcat", "-d", "-s") // Use "-d" for dump and exit
+//        val logcatCommand = mutableListOf("logcat", "-d", "-s") // Use "-d" for dump and exit, or omit for continuous logs
+        val logcatCommand = mutableListOf("logcat", "-s") // Use "-d" for dump and exit, or omit for continuous logs
         logcatCommand.addAll(tags.map { "$it:D" })
         Log.d("MainActivity", "$logcatCommand")
 
         val process = ProcessBuilder()
-            .command(logcatCommand) // Use "-d" for dump and exit, or omit for continuous logs
+            .command(logcatCommand)
             .redirectErrorStream(true)
             .start()
-
-        // Read the output from the process
         BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
             var line: String?
             while (reader.readLine().also { line = it } != null) {
-//                val processedLine = line?.substringAfter(":") ?: ""
-//                val processedLine = line?.split(":", limit = 2)?.getOrNull(1) ?: ""
                 outputCallback(line ?: "")
             }
         }
@@ -131,6 +135,52 @@ class FakeLogsViewModel : LogsViewModel() {
     }
 }
 
+@Composable
+fun LogCatList(modifier: Modifier = Modifier){
+    val output = remember { mutableStateOf("") }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text("LOGCAT:")
+
+        val scrollState = rememberScrollState()
+        val coroutineScope = rememberCoroutineScope()
+
+        LaunchedEffect(Unit) {
+                output.value = ""
+                handleSetLogcat(output)
+        }
+
+
+        LaunchedEffect(output.value) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(scrollState)
+                .padding(8.dp)
+        ) {
+            Text(output.value, style = MaterialTheme.typography.bodySmall)
+        }
+
+        Row {
+            CustomButton(onClick = { output.value = "" }, text = "Clear")
+            Spacer(modifier = Modifier.width(16.dp))
+            CustomButton(onClick = {
+                coroutineScope.launch {
+                    scrollState.animateScrollTo(scrollState.maxValue)
+                }
+            }, text = "Down")
+        }
+    }
+
+}
 
 @Preview(showBackground = true)
 @Composable

@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.devcrisomg.wifip2p_custom_app
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

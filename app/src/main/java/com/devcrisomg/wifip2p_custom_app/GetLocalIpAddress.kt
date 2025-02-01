@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.devcrisomg.wifip2p_custom_app
 import android.content.Context
 import android.net.wifi.WifiManager
 import java.net.InetAddress

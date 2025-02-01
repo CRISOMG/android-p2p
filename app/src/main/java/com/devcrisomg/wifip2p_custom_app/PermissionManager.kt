@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.devcrisomg.wifip2p_custom_app
 
 import androidx.activity.ComponentActivity
 import android.Manifest

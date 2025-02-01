@@ -1,4 +1,4 @@
-package com.example.myapplication.ui.theme
+package com.devcrisomg.wifip2p_custom_app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

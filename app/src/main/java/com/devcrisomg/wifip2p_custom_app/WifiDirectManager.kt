@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.devcrisomg.wifip2p_custom_app
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
