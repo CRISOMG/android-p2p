@@ -7,7 +7,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.net.wifi.p2p.WifiP2pManager
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -36,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,6 +46,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.devcrisomg.wifip2p_custom_app.ui.theme.MyApplicationTheme
+import java.io.File
+
+
 
 //import com.google.accompanist.flowlayout.FlowRow
 
@@ -87,10 +88,13 @@ fun CustomButton(
     }
 }
 
+
+
 class MainActivity : ComponentActivity() {
     private lateinit var wifiDirectManager: WifiDirectManagerV2
     private lateinit var permissionManager: PermissionManager
     private var isServiceConnected = mutableStateOf(false)
+
 
     private val wifiDirectServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -107,6 +111,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val pm = packageManager
+        val info = pm.getPackageInfo(packageName, 0)
+        val currentVersion = info.versionName
+            Log.d("GeneralLog", "${currentVersion}")
+
+
+
+        val privateDir: File? = getExternalFilesDir(null)
+        if (privateDir != null) {
+            Log.d("PrivateDir", "Ruta del directorio privado: ${privateDir.absolutePath}")
+        }
+
 
         permissionManager = PermissionManager(this)
         permissionManager.requestPermissions()

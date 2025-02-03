@@ -1,11 +1,12 @@
 package com.devcrisomg.wifip2p_custom_app
 
-import androidx.activity.ComponentActivity
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
+import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 
@@ -20,6 +21,7 @@ class PermissionManager(private val context: Context) {
             }
         }
 
+//    var privateDir: File = getExternalFilesDir(null)
     @SuppressLint("InlinedApi")
     fun requestPermissions() {
         requestPermissionLauncher.launch(
