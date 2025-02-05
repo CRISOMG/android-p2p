@@ -7,12 +7,14 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,7 +49,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.devcrisomg.wifip2p_custom_app.ui.theme.MyApplicationTheme
 import java.io.File
-
 
 
 //import com.google.accompanist.flowlayout.FlowRow
@@ -89,10 +90,10 @@ fun CustomButton(
 }
 
 
-
 class MainActivity : ComponentActivity() {
     private lateinit var wifiDirectManager: WifiDirectManagerV2
     private lateinit var permissionManager: PermissionManager
+    private lateinit var customUpdateManager: CustomUpdateManager
     private var isServiceConnected = mutableStateOf(false)
 
 
@@ -115,15 +116,16 @@ class MainActivity : ComponentActivity() {
         val pm = packageManager
         val info = pm.getPackageInfo(packageName, 0)
         val currentVersion = info.versionName
-            Log.d("GeneralLog", "${currentVersion}")
-
+        Log.d("GeneralLog", "$currentVersion")
 
 
         val privateDir: File? = getExternalFilesDir(null)
         if (privateDir != null) {
-            Log.d("PrivateDir", "Ruta del directorio privado: ${privateDir.absolutePath}")
+            Log.d("GeneralLog", "Ruta del directorio privado: ${privateDir.absolutePath}")
         }
 
+        customUpdateManager = CustomUpdateManager(this)
+//        customUpdateManager.checkForUpdate()
 
         permissionManager = PermissionManager(this)
         permissionManager.requestPermissions()
@@ -147,7 +149,7 @@ class MainActivity : ComponentActivity() {
                 darkTheme = true, dynamicColor = false
             ) {
                 if (isServiceConnected.value) {
-                    MainScreen(wifiP2PManager = wifiDirectManager)
+                    MainScreen(wifiP2PManager = wifiDirectManager,customUpdateManager)
                 } else {
                     // Show a loading indicator or placeholder until the service is connected
                     Text("Initializing...")
@@ -189,7 +191,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ScreenA(navController: NavController) {
+fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManager) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
     ) { innerPadding ->
@@ -253,10 +255,28 @@ fun ScreenA(navController: NavController) {
                     )
                 }
             }
+
+
             CustomButton(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 onClick = { navController.navigate("screenB") },
                 text = "LOGCAT"
+            )
+
+            CustomButton(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                onClick = {
+                    customUpdateManager.showApiUrlDialog()
+                },
+                text = "Check Updates"
+            )
+
+            CustomButton(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                onClick = {
+                    Log.d("GeneralLog", customUpdateManager.getCurrDownloadManaged().toString())
+                },
+                text = "DEBUG"
             )
             val socketManager = SocketManagerProvider.current
             FlowRow(
@@ -393,6 +413,7 @@ fun ScreenC(navController: NavController) {
 @Composable
 fun MainScreen(
     wifiP2PManager: WifiDirectManagerV2,
+    customUpdateManager: CustomUpdateManager
 ) {
     val context = LocalContext.current
     ProvideSocketManager(context = context, wifiP2PManager) {
@@ -401,7 +422,7 @@ fun MainScreen(
         ) {
             val navController = rememberNavController()
             NavHost(navController = navController, startDestination = "screenA") {
-                composable("screenA") { ScreenA(navController) }
+                composable("screenA") { ScreenA(navController, customUpdateManager) }
                 composable("screenB") { ScreenB(navController) }
                 composable("screenC") { ScreenC(navController) }
 //                composable(

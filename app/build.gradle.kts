@@ -11,10 +11,10 @@ android {
 
     defaultConfig {
         applicationId = "com.devcrisomg.wifip2p_custom_app"
-        minSdk = 24
+        minSdk = 34
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -38,6 +38,7 @@ android {
     buildFeatures {
         compose = true
     }
+    buildToolsVersion = "34.0.0"
 }
 
 dependencies {
@@ -63,4 +64,5 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.accompanist.flowlayout)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.okhttp)
 }
