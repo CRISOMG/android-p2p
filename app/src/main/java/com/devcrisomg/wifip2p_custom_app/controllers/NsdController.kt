@@ -1,21 +1,23 @@
-package com.devcrisomg.wifip2p_custom_app
+package com.devcrisomg.wifip2p_custom_app.controllers
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
+import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
+import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
 
 class NsdController(
     private val context: Context,
     ) {
     @SuppressLint("NewApi")
     val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
-
+    val onDeviceResolved: GenericEventBus<DeviceInfoModel> = GenericEventBus()
     val discoveryListener = @SuppressLint("NewApi")
     object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(serviceType: String) {
@@ -30,7 +32,18 @@ class NsdController(
                 }
 
                 override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                    Log.d("NsdManager", "Servicio resuelto: ${serviceInfo.host.hostAddress}:${serviceInfo.port}")
+                    val ip = serviceInfo.hostAddresses[0].toString()
+                    val name = serviceInfo.serviceName
+                    val txtRecords = serviceInfo.attributes // Obtén los registros TXT
+                    val deviceNameBytes = txtRecords["deviceName"]
+                    val deviceName = deviceNameBytes?.let { String(it, Charsets.UTF_8) }
+                    Log.d("NsdManager", "Servicio de ${deviceName} resuelto: ${serviceInfo.hostAddresses[0]}:${serviceInfo.port}")
+
+                    onDeviceResolved.publish(DeviceInfoModel(
+                        name= name,
+                        ip = ip,
+                        ip_lan = ip
+                    ))
                 }
             })
         }
@@ -71,7 +84,7 @@ class NsdController(
             this.port = 8888 // Puerto donde corre tu servicio
             setAttribute("tag","MyOMGAppServiceAndroid")
             setAttribute("appVersion","1.0")
-            setAttribute("ip",getLocalIpAddress(context))
+            setAttribute("ip", getLocalIpAddress(context))
             setAttribute("port", "${8888}")
             setAttribute("deviceName", deviceName)
         }

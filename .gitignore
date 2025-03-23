@@ -13,3 +13,4 @@
 .externalNativeBuild
 .cxx
 local.properties
+/nodejs_apk_server/node_modules/

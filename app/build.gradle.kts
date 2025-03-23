@@ -2,16 +2,20 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "1.8.0"
+    kotlin("plugin.serialization") version "2.1.20"
+    id("com.google.dagger.hilt.android")
+    id("com.google.devtools.ksp")
 }
-
+ksp {
+    arg("ksp.incremental", "true")
+}
 android {
     namespace = "com.devcrisomg.wifip2p_custom_app"
     compileSdk = 35
 
     defaultConfig {
         applicationId = "com.devcrisomg.wifip2p_custom_app"
-        minSdk = 34
+        minSdk = 29
         targetSdk = 35
         versionCode = 2
         versionName = "1.0.2"
@@ -29,16 +33,25 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "1.8"
     }
+//    compileOptions {
+//        sourceCompatibility = JavaVersion.VERSION_11
+//        targetCompatibility = JavaVersion.VERSION_11
+//        isCoreLibraryDesugaringEnabled = true
+//    }
+//    kotlinOptions {
+//        jvmTarget = "11"
+//    }
     buildFeatures {
         compose = true
     }
-    buildToolsVersion = "34.0.0"
+//    buildToolsVersion = "34.0.0"
 }
 
 dependencies {
@@ -54,6 +67,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.gson)
     implementation(libs.androidx.navigation.runtime.ktx)
+    implementation(libs.androidx.runtime.livedata)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -65,4 +79,17 @@ dependencies {
     implementation(libs.accompanist.flowlayout)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.okhttp)
+
+    // Hilt Core
+    implementation(libs.hilt.android)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.dagger.hilt.android)
+    ksp(libs.hilt.android.compiler)
+
+    implementation(libs.dagger.compiler)
+    ksp(libs.dagger.compiler)
+
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
 }

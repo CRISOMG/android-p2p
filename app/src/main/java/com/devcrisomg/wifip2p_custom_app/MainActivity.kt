@@ -1,13 +1,11 @@
 package com.devcrisomg.wifip2p_custom_app
 
-//import com.google.accompanist.flowlayout.FlowRow
-//import androidx.compose.foundation.layout.FlowRow
-//import com.google.accompanist.flowlayout.FlowRow
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.wifi.WifiManager
+import android.net.wifi.p2p.WifiP2pDevice
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -15,25 +13,17 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonElevation
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,66 +31,51 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.devcrisomg.wifip2p_custom_app.components.CustomButton
+import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
+import com.devcrisomg.wifip2p_custom_app.components.DeviceList
+import com.devcrisomg.wifip2p_custom_app.components.LogCatList
+import com.devcrisomg.wifip2p_custom_app.controllers.CustomUpdateManager
+import com.devcrisomg.wifip2p_custom_app.controllers.NsdController
+import com.devcrisomg.wifip2p_custom_app.controllers.PermissionManager
+import com.devcrisomg.wifip2p_custom_app.controllers.ProvideSocketManager
+import com.devcrisomg.wifip2p_custom_app.controllers.ProvideWifiDirectManager
+import com.devcrisomg.wifip2p_custom_app.controllers.SocketManagerProvider
+import com.devcrisomg.wifip2p_custom_app.controllers.SocketMessagesContainer
+import com.devcrisomg.wifip2p_custom_app.controllers.WifiDirectManagerV2
+import com.devcrisomg.wifip2p_custom_app.controllers.WifiDirectService
+import com.devcrisomg.wifip2p_custom_app.controllers.WifiP2PManagerProvider
 import com.devcrisomg.wifip2p_custom_app.ui.theme.MyApplicationTheme
+import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
+import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
+import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
+class DeviceEventBus @Inject constructor() : GenericStateFlowEventBus<DeviceInfoModel>()
 
-//import com.google.accompanist.flowlayout.FlowRow
-
-@Composable
-fun CustomButton(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    text: String = "Placeholder Text",
-    containerColor: Color = Color(0xffff7f50),
-    contentColor: Color = MaterialTheme.colorScheme.onPrimary,
-    contentPadding: PaddingValues = PaddingValues(4.dp),
-    elevation: ButtonElevation = ButtonDefaults.buttonElevation(), // Permite personalizar la elevación
-    border: BorderStroke? = null, // Permite agregar un borde opcional
-    enabled: Boolean = true, // Controla si el botón está habilitado
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.wrapContentSize(),
-        contentPadding = contentPadding,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor, contentColor = contentColor
-        ),
-        shape = MaterialTheme.shapes.extraSmall,
-        elevation = elevation,
-        border = border, // Usa el borde personalizado
-        enabled = enabled, // Controla si el botón está habilitado
-        // Add rounded corners (shape defined in your theme)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.wrapContentWidth(),
-            maxLines = 1,
-            overflow = TextOverflow.Clip,
-            color = Color.Black
-        )
-    }
-}
-
-
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private lateinit var wifiDirectManager: WifiDirectManagerV2
     private lateinit var permissionManager: PermissionManager
     private lateinit var nsdController: NsdController
-    private lateinit var customUpdateManager: CustomUpdateManager
+//    private lateinit var customUpdateManager: CustomUpdateManager
     private var isServiceConnected = mutableStateOf(false)
 
+    @Inject
+    lateinit var deviceEventBus: DeviceEventBus
 
     private val wifiDirectServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as WifiDirectService.WifiDirectBinder
+
             wifiDirectManager = binder.getService()
             isServiceConnected.value = true
         }
@@ -119,13 +94,13 @@ class MainActivity : ComponentActivity() {
         val currentVersion = info.versionName
         Log.d("GeneralLog", "$currentVersion")
 
-        val privateDir: File? = getExternalFilesDir(null)
-        if (privateDir != null) {
-            Log.d("GeneralLog", "Ruta del directorio privado: ${privateDir.absolutePath}")
-        }
+//        val privateDir: File? = getExternalFilesDir(null)
+//        if (privateDir != null) {
+//            Log.d("GeneralLog", "Ruta del directorio privado: ${privateDir.absolutePath}")
+//        }
 
-        customUpdateManager = CustomUpdateManager(this)
-        nsdController = NsdController(this)
+//        customUpdateManager = CustomUpdateManager(this)
+        nsdController = NsdController(this,)
         permissionManager = PermissionManager(this)
         permissionManager.requestPermissions()
 
@@ -133,8 +108,8 @@ class MainActivity : ComponentActivity() {
         val serviceIntent = Intent(this, WifiDirectService::class.java)
         startService(serviceIntent)
         bindService(serviceIntent, wifiDirectServiceConnection, Context.BIND_AUTO_CREATE)
-        nsdController.startDiscovery()
-        nsdController.advertiseService()
+
+
        try {
            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
            wifiManager.createMulticastLock("mDNSLock").acquire()
@@ -151,12 +126,29 @@ class MainActivity : ComponentActivity() {
                 darkTheme = true, dynamicColor = false
             ) {
                 if (isServiceConnected.value) {
+                    nsdController.startDiscovery()
+                    nsdController.advertiseService()
+
+
+                    nsdController.onDeviceResolved.subscribe { event ->
+                        Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
+                        deviceEventBus.publish(event)
+                    }
+
+                    wifiDirectManager.onDeviceResolved.subscribe { event ->
+                        Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
+                        deviceEventBus.publish(DeviceInfoModel(
+                            name = event.name,
+                            ip = event.ip,
+                            ip_p2p = event.ip,
+                        ))
+                    }
                     MainScreen(
-                        wifiP2PManager = wifiDirectManager, customUpdateManager,
+                        wifiP2PManager = wifiDirectManager,
+//                        customUpdateManager,
                         mdnsAdvertise = { nsdController.advertiseService() }
                         )
                 } else {
-                    // Show a loading indicator or placeholder until the service is connected
                     Text("Initializing...")
                 }
             }
@@ -165,8 +157,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        nsdController.advertiseService()
-        nsdController.startDiscovery()
+//        nsdController.advertiseService()
+//        nsdController.startDiscovery()
         if (isServiceConnected.value) {
             wifiDirectManager.registerReceivers()
             wifiDirectManager.advertiseService("MyCustomTag")
@@ -198,7 +190,9 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManager, mdnsAdvertise: () -> Unit) {
+fun ScreenA(navController: NavController,
+//            customUpdateManager: CustomUpdateManager,
+            mdnsAdvertise: () -> Unit) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
     ) { innerPadding ->
@@ -279,7 +273,7 @@ fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManage
             CustomButton(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 onClick = {
-                    customUpdateManager.showApiUrlDialog()
+//                    customUpdateManager.showApiUrlDialog()
                 },
                 text = "Check Updates"
             )
@@ -287,7 +281,7 @@ fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManage
             CustomButton(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 onClick = {
-                    Log.d("GeneralLog", customUpdateManager.getCurrDownloadManaged().toString())
+//                    Log.d("GeneralLog", customUpdateManager.getCurrDownloadManaged().toString())
                 },
                 text = "DEBUG"
             )
@@ -344,7 +338,6 @@ fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManage
                 }
             }
             DeviceList(
-                devices = wifiP2PManager.discoveredServices,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -426,7 +419,7 @@ fun ScreenC(navController: NavController) {
 @Composable
 fun MainScreen(
     wifiP2PManager: WifiDirectManagerV2,
-    customUpdateManager: CustomUpdateManager,
+//    customUpdateManager: CustomUpdateManager,
     mdnsAdvertise: () -> Unit
 ) {
     val context = LocalContext.current
@@ -436,7 +429,7 @@ fun MainScreen(
         ) {
             val navController = rememberNavController()
             NavHost(navController = navController, startDestination = "screenA") {
-                composable("screenA") { ScreenA(navController, customUpdateManager,mdnsAdvertise) }
+                composable("screenA") { ScreenA(navController, mdnsAdvertise) }
                 composable("screenB") { ScreenB(navController) }
                 composable("screenC") { ScreenC(navController) }
 //                composable(

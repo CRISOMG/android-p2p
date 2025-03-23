@@ -1,13 +1,11 @@
-package com.devcrisomg.wifip2p_custom_app
+package com.devcrisomg.wifip2p_custom_app.controllers
 
 import android.annotation.SuppressLint
 import android.app.Service
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.ServiceConnection
 import android.net.wifi.WifiManager
 import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
@@ -22,8 +20,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
@@ -31,8 +27,10 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import com.devcrisomg.wifip2p_custom_app.components.DeviceDiscoveredEvent
+import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
+import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
+import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
 import kotlinx.serialization.Serializable
 
 @SuppressLint("HardwareIds")
@@ -42,11 +40,11 @@ fun getMacAddress(context: Context): String? {
     return wifiInfo.macAddress
 }
 
-data class ServiceInfo(
-    var records: MutableMap<String, Any?>?,
-    var device: WifiP2pDevice,
-    var group_status: MutableState<Int?> = mutableStateOf<Int?>(null)
-)
+//interface EventBus {
+//    fun publish(event: DeviceDiscoveredEvent)
+//    fun subscribe(listener: (DeviceDiscoveredEvent) -> Unit)
+//}
+
 
 val WifiP2PManagerProvider =
     compositionLocalOf<WifiDirectManagerV2> { error("No WifiDirectManagerV2 provided") }
@@ -58,38 +56,17 @@ fun ProvideWifiDirectManager(wifiP2PManager: WifiDirectManagerV2, content: @Comp
     }
 }
 
-@Serializable
-data class WifiP2pGroupSerializable(
-    val networkName: String?,
-    val ownerDeviceAddress: String?,
-    val isGroupOwner: Boolean,
-    val passphrase: String?,
-    val clients: List<String>?
-) {
-    companion object {
-        fun fromWifiP2pGroup(group: WifiP2pGroup?): WifiP2pGroupSerializable? {
-            if (group == null) return null
-
-            val clients = group.clientList?.map { it.deviceAddress } ?: emptyList()
-            return WifiP2pGroupSerializable(
-                networkName = group.networkName,
-                ownerDeviceAddress = group.owner?.deviceAddress,
-                isGroupOwner = group.isGroupOwner,
-                passphrase = group.passphrase,
-                clients = clients
-            )
-        }
-    }
-}
 
 class WifiDirectManagerV2(
     private val context: Context,
     private val wifiP2pManager: WifiP2pManager,
     private val channel: WifiP2pManager.Channel,
+
 //    private val permissionManager: PermissionManager,
 ) {
     val discoveredDevices = mutableStateListOf<WifiP2pDevice>()
-    val discoveredServices = mutableStateMapOf<String, ServiceInfo>()
+    val discoveredServices = mutableStateMapOf<String, DeviceInfoModel>()
+    val onDeviceResolved: GenericEventBus<DeviceInfoModel> = GenericEventBus()
 
     val connectionInfo = mutableStateOf<WifiP2pInfo?>(null)
     val currGroupState = mutableStateOf<WifiP2pGroup?>(null)
@@ -255,7 +232,7 @@ class WifiDirectManagerV2(
     fun getConnectedDevices() {
         Log.d("WiFiP2P", "discoveredServices: ${
             discoveredServices.keys.map { key ->
-                val service: ServiceInfo? = discoveredServices[key]
+                val service: DeviceInfoModel? = discoveredServices[key]
                 mapOf(
                     "r" to service?.records,
                     "d" to service?.device?.deviceName,
@@ -277,12 +254,17 @@ class WifiDirectManagerV2(
             Log.d("WiFiP2P", "[getConnectedDevices] Discovered Devices:\n$devicesString")
             targetDevices.forEach { device ->
                 if (device?.deviceName?.isNotEmpty() == true) {
-                    val newServiceInfo = ServiceInfo(
+                    val newServiceInfo = DeviceInfoModel(
+                        name = device.deviceName,
+//                        ip = device.ipAddress.toString(),
+//                        ip_p2p = device.ipAddress.toString(),
                         records = discoveredServices[device.deviceName]?.records,
                         device = device,
                         group_status = mutableStateOf(device.status)
                     )
                     discoveredServices[device.deviceName] = newServiceInfo
+
+                    onDeviceResolved.publish(newServiceInfo)
                 }
             }
         }
@@ -306,11 +288,14 @@ class WifiDirectManagerV2(
 
                 if (group.owner.deviceName?.isNotEmpty() == true) {
                     val devServ = discoveredServices.getOrPut(group.owner.deviceName) {
-                        ServiceInfo(records = null, device = group.owner)
+                        DeviceInfoModel(records = null, device = group.owner)
                     }
                     devServ.records = devServ.records?.apply {
                         this["g_ip"] = info.groupOwnerAddress?.hostAddress
                     } ?: mutableMapOf("g_ip" to info.groupOwnerAddress?.hostAddress)
+
+//                    onDeviceResolved.publish(newServiceInfo)
+
                 }
             }
 //            Log.d("WiFiP2P", "Group id: ${group.networkId}")
@@ -392,7 +377,7 @@ class WifiDirectManagerV2(
         advertiseService()
     }
 
-    @SuppressLint("MissingPermission")
+    @SuppressLint("MissingPermission", "NewApi")
     fun discoverServices() {
         Log.d("WiFiP2P", "[discoverServices]")
         wifiP2pManager.setDnsSdResponseListeners(channel,
@@ -415,10 +400,17 @@ class WifiDirectManagerV2(
                         this["ip"] = null
                     }
                 }.toMutableMap()
-                val serviceInfo = ServiceInfo(
-                    records = txtRecordMap.toMutableMap(), device = srcDevice
+                val serviceInfo = DeviceInfoModel(
+                    name = srcDevice.deviceName,
+                    ip = srcDevice.ipAddress.toString(),
+                    ip_p2p = srcDevice.ipAddress.toString(),
+                    records = txtRecordMap.toMutableMap(),
+                    device = srcDevice
                 )
                 discoveredServices[srcDevice.deviceName] = serviceInfo
+//                onDeviceResolved.publish(serviceInfo)
+
+
             })
 
         wifiP2pManager.addServiceRequest(channel,
@@ -502,13 +494,12 @@ class WifiDirectManagerV2(
 
 class WifiDirectService : Service() {
     private lateinit var wifiDirectManager: WifiDirectManagerV2
-
     override fun onCreate() {
         super.onCreate()
         wifiDirectManager = WifiDirectManagerV2(
             applicationContext,
-            getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager,
-            (getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager).initialize(
+            getSystemService(WIFI_P2P_SERVICE) as WifiP2pManager,
+            (getSystemService(WIFI_P2P_SERVICE) as WifiP2pManager).initialize(
                 applicationContext, mainLooper, null
             ),
 //            permissionManager = PermissionManager(applicationContext)
@@ -530,7 +521,7 @@ class WifiDirectService : Service() {
     private val binder = WifiDirectBinder()
 
     inner class WifiDirectBinder : Binder() {
-        fun getService(): WifiDirectManagerV2 = wifiDirectManager
+        fun getService( ): WifiDirectManagerV2 = wifiDirectManager
     }
 
     override fun onBind(intent: Intent?): IBinder {

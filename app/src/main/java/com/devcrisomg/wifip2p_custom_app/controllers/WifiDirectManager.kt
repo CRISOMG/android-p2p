@@ -1,4 +1,4 @@
-package com.devcrisomg.wifip2p_custom_app
+package com.devcrisomg.wifip2p_custom_app.controllers
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver

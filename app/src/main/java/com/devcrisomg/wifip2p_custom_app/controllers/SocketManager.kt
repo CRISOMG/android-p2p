@@ -1,4 +1,4 @@
-package com.devcrisomg.wifip2p_custom_app
+package com.devcrisomg.wifip2p_custom_app.controllers
 
 
 import android.annotation.SuppressLint
@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -36,6 +35,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.devcrisomg.wifip2p_custom_app.components.CustomButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -83,7 +83,7 @@ object SocketManager {
 
     fun init(context: Context, wifiDirectManager: WifiDirectManagerV2) {
         appContext = context.applicationContext
-        this.wifiDirectManager = wifiDirectManager
+        SocketManager.wifiDirectManager = wifiDirectManager
         initServerSocket()
     }
 
@@ -153,9 +153,9 @@ object SocketManager {
         val wasDiscovered = wifiDirectManager.discoveredServices.values.find {
             Log.d(
                 "SocketManager",
-                "deviceAddress: ${it.device.deviceAddress.toString()} PAYLOAD $authPayload"
+                "deviceAddress: ${it.device?.deviceAddress.toString()} PAYLOAD $authPayload"
             )
-            it.device.deviceAddress.equals(authPayload)
+            it.device?.deviceAddress.equals(authPayload)
         }
         Log.d("SocketManager", "AUTH: ${wasDiscovered} PAYLOAD $authPayload")
         return wasDiscovered != null
@@ -297,17 +297,17 @@ fun SocketMessagesContainer(modifier: Modifier = Modifier) {
     val socketManager = SocketManagerProvider.current
 
     LaunchedEffect(Unit) {
-        if (socketManager.connectedClients.isNotEmpty()) {
-            selectedClient = socketManager.connectedClients.first().socket
+        if (SocketManager.connectedClients.isNotEmpty()) {
+            selectedClient = SocketManager.connectedClients.first().socket
         }
     }
 
     val listState = rememberLazyListState()
     var isUserScrolling by remember { mutableStateOf(false) }
 
-    LaunchedEffect(socketManager.receivedMessages.size) {
-        if (socketManager.receivedMessages.isNotEmpty() && !isUserScrolling) {
-            listState.animateScrollToItem(socketManager.receivedMessages.size - 1)
+    LaunchedEffect(SocketManager.receivedMessages.size) {
+        if (SocketManager.receivedMessages.isNotEmpty() && !isUserScrolling) {
+            listState.animateScrollToItem(SocketManager.receivedMessages.size - 1)
         }
     }
 
@@ -315,7 +315,7 @@ fun SocketMessagesContainer(modifier: Modifier = Modifier) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect {
                 val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                isUserScrolling = lastVisibleIndex < socketManager.receivedMessages.size - 1
+                isUserScrolling = lastVisibleIndex < SocketManager.receivedMessages.size - 1
             }
     }
 
@@ -326,7 +326,7 @@ fun SocketMessagesContainer(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .padding(8.dp), state = listState
         ) {
-            items(socketManager.receivedMessages) { message ->
+            items(SocketManager.receivedMessages) { message ->
                 Text(text = message)
             }
         }
@@ -337,7 +337,7 @@ fun SocketMessagesContainer(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .padding(8.dp),
         ) {
-            items(socketManager.connectedClients) { client ->
+            items(SocketManager.connectedClients) { client ->
                 Text(text = if (client.socket.inetAddress.hostAddress == selectedClient?.inetAddress?.hostAddress) "${client.socket.inetAddress.hostAddress ?: "Cliente desconocido"} <<<"
                 else client.socket.inetAddress.hostAddress,
                     modifier = Modifier.clickable { selectedClient = client.socket })
@@ -345,13 +345,13 @@ fun SocketMessagesContainer(modifier: Modifier = Modifier) {
         }
         fun handleSendToClient() {
             if (messageToSend.isNotBlank()) {
-                socketManager.sendMessage(messageToSend, selectedClient)
+                SocketManager.sendMessage(messageToSend, selectedClient)
             }
         }
 
         fun handleSendToServer() {
             if (messageToSend.isNotBlank()) {
-                socketManager.sendMessage(messageToSend, socketManager.currSocketClient)
+                SocketManager.sendMessage(messageToSend, SocketManager.currSocketClient)
             }
         }
         FlowRow(
@@ -374,7 +374,7 @@ fun SocketMessagesContainer(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.width(4.dp))
             CustomButton(
                 onClick = {
-                    socketManager.receivedMessages.clear()
+                    SocketManager.receivedMessages.clear()
                 }, text = "Clear Messages", modifier = Modifier
             )
             Spacer(modifier = Modifier.width(4.dp))

@@ -1,4 +1,4 @@
-package com.devcrisomg.wifip2p_custom_app
+package com.devcrisomg.wifip2p_custom_app.components
 
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
