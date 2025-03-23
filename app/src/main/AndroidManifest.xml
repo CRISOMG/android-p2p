@@ -17,6 +17,7 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
 
 <!--    <uses-permission-->
 <!--        android:name="android.permission.READ_MEDIA_IMAGES"-->
@@ -32,6 +33,8 @@
     <uses-feature
         android:name="android.hardware.wifi.direct"
         android:required="true" />
+    <uses-feature android:name="android.hardware.wifi" />
+
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
 
 

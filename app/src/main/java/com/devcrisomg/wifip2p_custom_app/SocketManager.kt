@@ -25,12 +25,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -121,6 +123,8 @@ object SocketManager {
     fun initClientSocket(serverAddress: String, macAddress: String) {
         Thread {
             try {
+                Log.d("SocketManager", "Try to Connect to $serverAddress.")
+
                 val s = Socket(serverAddress, 8888)
                 currSocketClient = s
 
@@ -169,6 +173,8 @@ object SocketManager {
                 while (true) {
                     val message = input.readLine()
                     if (message != null) {
+                        Log.d("SocketManager", "Mensaje recibido: $message")
+
                         appContext?.let { context ->
                             mainScope.launch {
                                 receivedMessages.add(message)
@@ -176,6 +182,8 @@ object SocketManager {
                                     .show()
                             }
                         }
+                    } else {
+                        break // Salir del bucle si se recibe null
                     }
                 }
             } catch (e: Exception) {
@@ -295,10 +303,20 @@ fun SocketMessagesContainer(modifier: Modifier = Modifier) {
     }
 
     val listState = rememberLazyListState()
+    var isUserScrolling by remember { mutableStateOf(false) }
+
     LaunchedEffect(socketManager.receivedMessages.size) {
-        if (socketManager.receivedMessages.isNotEmpty()) {
+        if (socketManager.receivedMessages.isNotEmpty() && !isUserScrolling) {
             listState.animateScrollToItem(socketManager.receivedMessages.size - 1)
         }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .collect {
+                val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                isUserScrolling = lastVisibleIndex < socketManager.receivedMessages.size - 1
+            }
     }
 
     Column(modifier = modifier) {

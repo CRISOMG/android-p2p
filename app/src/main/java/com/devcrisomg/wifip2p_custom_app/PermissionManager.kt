@@ -76,6 +76,8 @@ class PermissionManager(private val context: ComponentActivity) {
     //    var privateDir: File = getExternalFilesDir(null)
     @SuppressLint("InlinedApi")
     fun requestPermissions() {
+
+
         if (!hasLocationPermissions()) {
 //            requestManageExternalStoragePermission()
 //            requestManageUnknownAppSourcesPermission()

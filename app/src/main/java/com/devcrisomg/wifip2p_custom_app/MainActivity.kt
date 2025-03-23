@@ -7,14 +7,14 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.os.Build
+import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -93,6 +93,7 @@ fun CustomButton(
 class MainActivity : ComponentActivity() {
     private lateinit var wifiDirectManager: WifiDirectManagerV2
     private lateinit var permissionManager: PermissionManager
+    private lateinit var nsdController: NsdController
     private lateinit var customUpdateManager: CustomUpdateManager
     private var isServiceConnected = mutableStateOf(false)
 
@@ -118,30 +119,31 @@ class MainActivity : ComponentActivity() {
         val currentVersion = info.versionName
         Log.d("GeneralLog", "$currentVersion")
 
-
         val privateDir: File? = getExternalFilesDir(null)
         if (privateDir != null) {
             Log.d("GeneralLog", "Ruta del directorio privado: ${privateDir.absolutePath}")
         }
 
         customUpdateManager = CustomUpdateManager(this)
-//        customUpdateManager.checkForUpdate()
-
+        nsdController = NsdController(this)
         permissionManager = PermissionManager(this)
         permissionManager.requestPermissions()
-//        wifiDirectManager = WifiDirectManagerV2(
-//            this,
-//            getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager,
-//            (getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager).initialize(
-//                this, mainLooper, null
-//            ),
-//            permissionManager = permissionManager
-//        )
+
 
         val serviceIntent = Intent(this, WifiDirectService::class.java)
         startService(serviceIntent)
         bindService(serviceIntent, wifiDirectServiceConnection, Context.BIND_AUTO_CREATE)
+        nsdController.startDiscovery()
+        nsdController.advertiseService()
+       try {
+           val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+           wifiManager.createMulticastLock("mDNSLock").acquire()
+       } catch (e: Exception) {
 
+           e.message?.let { Log.e("NsdManager", it) }
+           Toast.makeText(this, "wifiManager.createMulticastLock error", Toast.LENGTH_SHORT).show()
+       }
+//        nsdController.startPeriodicAdvertising()
 
 
         setContent {
@@ -149,7 +151,10 @@ class MainActivity : ComponentActivity() {
                 darkTheme = true, dynamicColor = false
             ) {
                 if (isServiceConnected.value) {
-                    MainScreen(wifiP2PManager = wifiDirectManager,customUpdateManager)
+                    MainScreen(
+                        wifiP2PManager = wifiDirectManager, customUpdateManager,
+                        mdnsAdvertise = { nsdController.advertiseService() }
+                        )
                 } else {
                     // Show a loading indicator or placeholder until the service is connected
                     Text("Initializing...")
@@ -160,6 +165,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        nsdController.advertiseService()
+        nsdController.startDiscovery()
         if (isServiceConnected.value) {
             wifiDirectManager.registerReceivers()
             wifiDirectManager.advertiseService("MyCustomTag")
@@ -191,7 +198,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManager) {
+fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManager, mdnsAdvertise: () -> Unit) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
     ) { innerPadding ->
@@ -213,6 +220,12 @@ fun ScreenA(navController: NavController,customUpdateManager: CustomUpdateManage
                 verticalArrangement = Arrangement.spacedBy(4.dp),
 
                 ) {
+                CustomButton(
+                    containerColor = Color(0xFF2196F3),
+                    onClick = {
+                        mdnsAdvertise()
+                    }, text = "Advertise", modifier = Modifier
+                )
 
 
                 CustomButton(
@@ -413,7 +426,8 @@ fun ScreenC(navController: NavController) {
 @Composable
 fun MainScreen(
     wifiP2PManager: WifiDirectManagerV2,
-    customUpdateManager: CustomUpdateManager
+    customUpdateManager: CustomUpdateManager,
+    mdnsAdvertise: () -> Unit
 ) {
     val context = LocalContext.current
     ProvideSocketManager(context = context, wifiP2PManager) {
@@ -422,7 +436,7 @@ fun MainScreen(
         ) {
             val navController = rememberNavController()
             NavHost(navController = navController, startDestination = "screenA") {
-                composable("screenA") { ScreenA(navController, customUpdateManager) }
+                composable("screenA") { ScreenA(navController, customUpdateManager,mdnsAdvertise) }
                 composable("screenB") { ScreenB(navController) }
                 composable("screenC") { ScreenC(navController) }
 //                composable(

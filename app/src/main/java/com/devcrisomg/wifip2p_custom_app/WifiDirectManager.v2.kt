@@ -266,7 +266,9 @@ class WifiDirectManagerV2(
 //        permissionManager.hasLocationPermissions()
         wifiP2pManager.requestPeers(channel) { peers ->
             val pt = "10-0050F204-5"
-            val targetDevices = peers.deviceList.filter { d -> d.primaryDeviceType == pt }
+//            1-0050F200-0
+//            val targetDevices = peers.deviceList.filter { d -> d.primaryDeviceType == pt }
+            val targetDevices = peers.deviceList
             val devicesString = targetDevices.joinToString {
                 "${it.deviceName} (${
                     getDeviceStatusDescription(it.status)
@@ -353,7 +355,7 @@ class WifiDirectManagerV2(
 
         wifiP2pManager.addLocalService(channel,
             WifiP2pDnsSdServiceInfo.newInstance(
-                "MyAppService", "_myapp._tcp", mapOf(
+                "MyOMGAppService", "_myomgapp._tcp", mapOf(
                     "tag" to tag,
                     "appVersion" to "1.0",
                     "ip" to ip,
@@ -534,5 +536,4 @@ class WifiDirectService : Service() {
     override fun onBind(intent: Intent?): IBinder {
         return binder
     }
-
 }

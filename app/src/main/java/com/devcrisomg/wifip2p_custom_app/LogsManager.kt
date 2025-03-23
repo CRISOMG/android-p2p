@@ -92,7 +92,7 @@ fun handleSetLogcat(logOutput: MutableState<String>) {
     GlobalScope.launch(Dispatchers.IO) {
         captureLogcat { log ->
             // Update the log output in a thread-safe manner
-            val t =log.split(" ", limit = 4)
+            val t = log.split(" ", limit = 4)
             val logTag = t.getOrNull(3)?.split(" ")?.getOrNull(2)
             val msj = t.getOrNull(3)?.split(':', limit = 2)?.getOrNull(1)
             logOutput.value += "${logTag ?: ""} ${msj}\n\n" // Append new log line
@@ -105,11 +105,21 @@ fun captureLogcat(outputCallback: (String) -> Unit) {
         // Start a new process to run the logcat command
 
         val packageName = "com.example.myapplication" // Replace with your package name
-        val tags = listOf("WiFiP2P", "WiFiDirect", "WiFiDirectConnection", "SocketInit", "SocketManager", "WifiP2pManager")
+        val tags = listOf(
+//            "WiFiP2P",
+//            "WiFiDirect",
+            "nsdmanager",
+            "WiFiDirectConnection",
+            "SocketInit",
+            "SocketManager",
+            "WifiP2pManager",
+            "GENERALLOG",
+        )
 //        val logcatCommand = mutableListOf("logcat", "-d", "-s") // Use "-d" for dump and exit, or omit for continuous logs
-        val logcatCommand = mutableListOf("logcat", "-s") // Use "-d" for dump and exit, or omit for continuous logs
+        val logcatCommand =
+            mutableListOf("logcat", "-s") // Use "-d" for dump and exit, or omit for continuous logs
         logcatCommand.addAll(tags.map { "$it:D" })
-        Log.d("MainActivity", "$logcatCommand")
+        Log.d("LOGMANAGER", "$logcatCommand")
 
         val process = ProcessBuilder()
             .command(logcatCommand)
@@ -136,7 +146,7 @@ class FakeLogsViewModel : LogsViewModel() {
 }
 
 @Composable
-fun LogCatList(modifier: Modifier = Modifier){
+fun LogCatList(modifier: Modifier = Modifier) {
     val output = remember { mutableStateOf("") }
 
     Column(
@@ -150,8 +160,8 @@ fun LogCatList(modifier: Modifier = Modifier){
         val coroutineScope = rememberCoroutineScope()
 
         LaunchedEffect(Unit) {
-                output.value = ""
-                handleSetLogcat(output)
+            output.value = ""
+            handleSetLogcat(output)
         }
 
 
