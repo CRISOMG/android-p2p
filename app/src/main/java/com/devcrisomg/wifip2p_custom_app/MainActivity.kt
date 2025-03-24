@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -32,13 +33,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.devcrisomg.wifip2p_custom_app.components.CustomButton
+import com.devcrisomg.wifip2p_custom_app.components.DeviceEventBus
 import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
 import com.devcrisomg.wifip2p_custom_app.components.DeviceList
+import com.devcrisomg.wifip2p_custom_app.components.DeviceViewModel
 import com.devcrisomg.wifip2p_custom_app.components.LogCatList
 import com.devcrisomg.wifip2p_custom_app.controllers.CustomUpdateManager
 import com.devcrisomg.wifip2p_custom_app.controllers.NsdController
@@ -58,8 +63,6 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@Singleton
-class DeviceEventBus @Inject constructor() : GenericStateFlowEventBus<DeviceInfoModel>()
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -69,8 +72,6 @@ class MainActivity : ComponentActivity() {
 //    private lateinit var customUpdateManager: CustomUpdateManager
     private var isServiceConnected = mutableStateOf(false)
 
-    @Inject
-    lateinit var deviceEventBus: DeviceEventBus
 
     private val wifiDirectServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -89,6 +90,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+//        Log.d("HiltDebug", "EventBus en MainActivity: $eventBus")
+        val deviceViewModel: DeviceViewModel by viewModels()
+//        val deviceViewModel: DeviceViewModel by viewModels {
+//            viewModelFactory {
+//                eventBus
+//            }
+//        }
+        Log.d("HiltDebug", "deviceViewModel en MainActivity: $deviceViewModel")
         val pm = packageManager
         val info = pm.getPackageInfo(packageName, 0)
         val currentVersion = info.versionName
@@ -128,21 +137,19 @@ class MainActivity : ComponentActivity() {
                 if (isServiceConnected.value) {
                     nsdController.startDiscovery()
                     nsdController.advertiseService()
-
-
-                    nsdController.onDeviceResolved.subscribe { event ->
-                        Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
-                        deviceEventBus.publish(event)
-                    }
-
-                    wifiDirectManager.onDeviceResolved.subscribe { event ->
-                        Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
-                        deviceEventBus.publish(DeviceInfoModel(
-                            name = event.name,
-                            ip = event.ip,
-                            ip_p2p = event.ip,
-                        ))
-                    }
+//                    nsdController.onDeviceResolved.subscribe { event ->
+//                        Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
+//                        deviceEventBus.publish(event)
+//                    }
+//
+//                    wifiDirectManager.onDeviceResolved.subscribe { event ->
+//                        Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
+//                        deviceEventBus.publish(DeviceInfoModel(
+//                            name = event.name,
+//                            ip = event.ip,
+//                            ip_p2p = event.ip,
+//                        ))
+//                    }
                     MainScreen(
                         wifiP2PManager = wifiDirectManager,
 //                        customUpdateManager,

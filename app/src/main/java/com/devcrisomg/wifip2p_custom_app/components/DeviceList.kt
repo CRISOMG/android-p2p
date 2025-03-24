@@ -22,16 +22,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import com.devcrisomg.wifip2p_custom_app.MainActivity
 import com.devcrisomg.wifip2p_custom_app.controllers.SocketManagerProvider
 import com.devcrisomg.wifip2p_custom_app.controllers.WifiP2PManagerProvider
 import com.devcrisomg.wifip2p_custom_app.controllers.getMacAddress
 import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
-import dagger.hilt.android.lifecycle.HiltViewModel
 import java.net.Socket
-import javax.inject.Inject
+import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import javax.inject.Singleton
 
 //            _resolvedDevices.value = devicesMap.values.toList()
 //            Handler(Looper.getMainLooper()).post {
@@ -49,20 +53,27 @@ data class DeviceInfoModel(
     var group_status: MutableState<Int?> = mutableStateOf<Int?>(null)
 )
 
+@Singleton
+class DeviceEventBus @Inject constructor(): GenericStateFlowEventBus<DeviceInfoModel>()
+
 @HiltViewModel
 class DeviceViewModel @Inject constructor(
-    private val eventBus: GenericEventBus<DeviceInfoModel>
+     var eventBus: DeviceEventBus
 ) : ViewModel() {
     private val _resolvedDevices = MutableLiveData<List<DeviceInfoModel>>()
     val resolvedDevices: LiveData<List<DeviceInfoModel>> get() = _resolvedDevices
     private val devicesMap = mutableMapOf<String, DeviceInfoModel>()
     init {
-        eventBus.subscribe { event ->
-            Log.d("GeneralLog", "DeviceViewModel ${event.name}")
-            devicesMap[event.name ?: "desconocido"] = event
-            _resolvedDevices.postValue(devicesMap.values.toList())
-
-        }
+        Log.d("DeviceViewModel", "DeviceViewModel instantiated")
+//        viewModelScope.launch {
+//            eventBus.stateFlow.collect { event ->
+//                event?.let {
+//                    Log.d("GeneralLog", "DeviceViewModel recibió: ${it.name}")
+//                    devicesMap[it.name ?: "desconocido"] = it
+//                    _resolvedDevices.postValue(devicesMap.values.toList())
+//                }
+//            }
+//        }
     }
 }
 

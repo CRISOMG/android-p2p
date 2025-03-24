@@ -2,12 +2,17 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "2.1.20"
-    id("com.google.dagger.hilt.android")
-    id("com.google.devtools.ksp")
+//    alias(libs.plugins.ksp)
+
+    alias(libs.plugins.hilt)
+
+    id("kotlin-kapt")
 }
-ksp {
-    arg("ksp.incremental", "true")
+//ksp {
+//    arg("ksp.incremental", "true")
+//}
+kapt {
+    correctErrorTypes = true
 }
 android {
     namespace = "com.devcrisomg.wifip2p_custom_app"
@@ -32,14 +37,14 @@ android {
             )
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-        isCoreLibraryDesugaringEnabled = true
-    }
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
+//    compileOptions {
+//        sourceCompatibility = JavaVersion.VERSION_1_8
+//        targetCompatibility = JavaVersion.VERSION_1_8
+//        isCoreLibraryDesugaringEnabled = true
+//    }
+//    kotlinOptions {
+//        jvmTarget = "1.8"
+//    }
 //    compileOptions {
 //        sourceCompatibility = JavaVersion.VERSION_11
 //        targetCompatibility = JavaVersion.VERSION_11
@@ -48,6 +53,14 @@ android {
 //    kotlinOptions {
 //        jvmTarget = "11"
 //    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
     buildFeatures {
         compose = true
     }
@@ -81,15 +94,19 @@ dependencies {
     implementation(libs.okhttp)
 
     // Hilt Core
+//    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.android)
-    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.navigation.compose)
-    implementation(libs.dagger.hilt.android)
-    ksp(libs.hilt.android.compiler)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.hilt.compiler)
+    kapt(libs.hilt.compiler)
 
-    implementation(libs.dagger.compiler)
-    ksp(libs.dagger.compiler)
-
+//    implementation(libs.dagger)
+//    implementation(libs.dagger.android)
+//    implementation(libs.dagger.android.support)
+//    kapt(libs.dagger.compiler)
+//    kapt(libs.dagger.android.processor)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
-
+//    implementation("com.google.dagger:hilt-android:2.51.1")
+//    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 }

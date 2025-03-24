@@ -27,7 +27,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import com.devcrisomg.wifip2p_custom_app.components.DeviceDiscoveredEvent
+//import com.devcrisomg.wifip2p_custom_app.components.DeviceDiscoveredEvent
 import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
 import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
 import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
