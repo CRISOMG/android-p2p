@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+//import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -73,6 +73,9 @@ class MainActivity : ComponentActivity() {
     private var isServiceConnected = mutableStateOf(false)
 
 
+    @Inject
+    lateinit var deviceEventBus: DeviceEventBus;
+
     private val wifiDirectServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as WifiDirectService.WifiDirectBinder
@@ -90,14 +93,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-//        Log.d("HiltDebug", "EventBus en MainActivity: $eventBus")
-        val deviceViewModel: DeviceViewModel by viewModels()
-//        val deviceViewModel: DeviceViewModel by viewModels {
-//            viewModelFactory {
-//                eventBus
-//            }
-//        }
-        Log.d("HiltDebug", "deviceViewModel en MainActivity: $deviceViewModel")
         val pm = packageManager
         val info = pm.getPackageInfo(packageName, 0)
         val currentVersion = info.versionName
@@ -137,19 +132,19 @@ class MainActivity : ComponentActivity() {
                 if (isServiceConnected.value) {
                     nsdController.startDiscovery()
                     nsdController.advertiseService()
-//                    nsdController.onDeviceResolved.subscribe { event ->
-//                        Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
-//                        deviceEventBus.publish(event)
-//                    }
-//
-//                    wifiDirectManager.onDeviceResolved.subscribe { event ->
-//                        Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
-//                        deviceEventBus.publish(DeviceInfoModel(
-//                            name = event.name,
-//                            ip = event.ip,
-//                            ip_p2p = event.ip,
-//                        ))
-//                    }
+                    nsdController.onDeviceResolved.subscribe { event ->
+                        Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
+                        deviceEventBus.publish(event)
+                    }
+
+                    wifiDirectManager.onDeviceResolved.subscribe { event ->
+                        Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
+                        deviceEventBus.publish(DeviceInfoModel(
+                            name = event.name,
+                            ip = event.ip,
+                            ip_p2p = event.ip,
+                        ))
+                    }
                     MainScreen(
                         wifiP2PManager = wifiDirectManager,
 //                        customUpdateManager,

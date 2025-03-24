@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.devcrisomg.wifip2p_custom_app.MainActivity
@@ -31,7 +32,7 @@ import java.net.Socket
 import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import androidx.hilt.navigation.compose.hiltViewModel
+//import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -58,30 +59,31 @@ class DeviceEventBus @Inject constructor(): GenericStateFlowEventBus<DeviceInfoM
 
 @HiltViewModel
 class DeviceViewModel @Inject constructor(
-     var eventBus: DeviceEventBus
+    private var eventBus: DeviceEventBus
 ) : ViewModel() {
     private val _resolvedDevices = MutableLiveData<List<DeviceInfoModel>>()
     val resolvedDevices: LiveData<List<DeviceInfoModel>> get() = _resolvedDevices
     private val devicesMap = mutableMapOf<String, DeviceInfoModel>()
     init {
         Log.d("DeviceViewModel", "DeviceViewModel instantiated")
-//        viewModelScope.launch {
-//            eventBus.stateFlow.collect { event ->
-//                event?.let {
-//                    Log.d("GeneralLog", "DeviceViewModel recibió: ${it.name}")
-//                    devicesMap[it.name ?: "desconocido"] = it
-//                    _resolvedDevices.postValue(devicesMap.values.toList())
-//                }
-//            }
-//        }
+        viewModelScope.launch {
+            eventBus.stateFlow.collect { event ->
+                event?.let {
+                    Log.d("GeneralLog", "DeviceViewModel recibió: ${it.name}")
+                    devicesMap[it.name ?: "desconocido"] = it
+                    _resolvedDevices.postValue(devicesMap.values.toList())
+                }
+            }
+        }
     }
 }
 
 @Composable
 fun DeviceList(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+//    viewModel: DeviceViewModel = hiltViewModel()
 ) {
-    val context  = ( LocalContext.current ) as MainActivity
+//    val context  = ( LocalContext.current ) as MainActivity
     val viewModel: DeviceViewModel = hiltViewModel()
     val resolvedDevices by viewModel.resolvedDevices.observeAsState(emptyList())
     Log.d("GeneralLog", "DeviceList composed.")

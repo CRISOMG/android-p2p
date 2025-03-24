@@ -97,8 +97,8 @@ dependencies {
 //    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
-    kapt(libs.hilt.android.compiler)
-    implementation(libs.hilt.compiler)
+//    kapt(libs.hilt.android.compiler)
+//    implementation(libs.hilt.compiler)
     kapt(libs.hilt.compiler)
 
 //    implementation(libs.dagger)

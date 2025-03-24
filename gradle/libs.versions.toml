@@ -50,12 +50,11 @@ androidx-runtime-livedata = { group = "androidx.compose.runtime", name = "runtim
 
 desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 
-
-dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "daggerCompiler" }
-dagger = { module = "com.google.dagger:dagger", version.ref = "daggerCompiler" }
-dagger-android = { module = "com.google.dagger:dagger-android", version.ref = "daggerCompiler" }
-dagger-android-support = { module = "com.google.dagger:dagger-android-support", version.ref = "daggerCompiler" }
-dagger-android-processor = { module = "com.google.dagger:dagger-android-processor", version.ref = "daggerCompiler" }
+#dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "daggerCompiler" }
+#dagger = { module = "com.google.dagger:dagger", version.ref = "daggerCompiler" }
+#dagger-android = { module = "com.google.dagger:dagger-android", version.ref = "daggerCompiler" }
+#dagger-android-support = { module = "com.google.dagger:dagger-android-support", version.ref = "daggerCompiler" }
+#dagger-android-processor = { module = "com.google.dagger:dagger-android-processor", version.ref = "daggerCompiler" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 hilt-android = { module = "com.google.dagger:hilt-android",version.ref = "hiltAndroidCompiler"  }
 hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroidCompiler" }
