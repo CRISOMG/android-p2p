@@ -210,9 +210,6 @@ fun ScreenA(navController: NavController,
 
         val mainActivity = (LocalContext.current) as MainActivity
         val viewModel: DeviceViewModel = hiltViewModel(mainActivity)
-        val h = viewModel.hashCode()
-        Log.d("DeviceViewModel", " ScreenA DeviceViewModel instantiated ${h}")
-
         val wifiP2PManager = WifiP2PManagerProvider.current
 
         Column(

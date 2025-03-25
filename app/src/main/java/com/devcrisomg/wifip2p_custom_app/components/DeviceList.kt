@@ -12,26 +12,27 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import com.devcrisomg.wifip2p_custom_app.controllers.SocketManagerProvider
 import com.devcrisomg.wifip2p_custom_app.controllers.WifiP2PManagerProvider
 import com.devcrisomg.wifip2p_custom_app.controllers.getMacAddress
 import java.net.Socket
-import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
+import com.devcrisomg.wifip2p_custom_app.utils.GenericSharedFlowEventBus
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 //import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import com.devcrisomg.wifip2p_custom_app.MainActivity
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,33 +53,27 @@ data class DeviceInfoModel(
 )
 
 @Singleton
-class DeviceEventBus @Inject constructor(): GenericStateFlowEventBus<DeviceInfoModel>()
+class DeviceEventBus @Inject constructor(): GenericSharedFlowEventBus<DeviceInfoModel>()
 
 @HiltViewModel
 class DeviceViewModel @Inject constructor(
     private var eventBus: DeviceEventBus
 ) : ViewModel() {
-    private val _resolvedDevices = MutableLiveData<List<DeviceInfoModel>>()
-    val resolvedDevices: LiveData<List<DeviceInfoModel>> get() = _resolvedDevices
-    private val devicesMap = mutableMapOf<String, DeviceInfoModel>()
-    init {
-        val h = this.hashCode()
-        Log.d("DeviceViewModel", "DeviceViewModel instantiated ${h}")
-        viewModelScope.launch {
-            eventBus.events.collect { event ->
-                event.let {
-                    Log.d("GeneralLog", "DeviceViewModel recibió: ${it.name} ${h}")
-                    devicesMap[it.name ?: "unknown_${System.currentTimeMillis()}"] = it
-//                    _resolvedDevices.postValue(devicesMap.values.toList())
-                    _resolvedDevices.value = devicesMap.values.toList()
-                }
-            }
+    private val _devicesMap = mutableMapOf<String, DeviceInfoModel>()
+
+    val resolvedDevices: StateFlow<List<DeviceInfoModel>> = eventBus.events
+        .map { event ->
+            _devicesMap[event.name ?: "unknown_${System.currentTimeMillis()}"] = event
+            _devicesMap.values.toList()
         }
-    }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000), // Cancela después de 5s sin suscriptores
+            initialValue = emptyList()
+        )
 
     fun clearDevices() {
-        devicesMap.clear()
-        _resolvedDevices.value = emptyList()
+        _devicesMap.clear()
     }
 }
 
@@ -89,11 +84,11 @@ fun DeviceList(
     val context  = ( LocalContext.current ) as MainActivity
     val viewModel: DeviceViewModel = hiltViewModel(context)
     Log.d("DeviceViewModel", " DeviceList DeviceViewModel instantiated ${viewModel.hashCode()}")
-    val resolvedDevices by viewModel.resolvedDevices.observeAsState(emptyList())
+    val devices by viewModel.resolvedDevices.collectAsState()
     Log.d("GeneralLog", "DeviceList composed.")
     LazyColumn(modifier = modifier) {
-        items(resolvedDevices) { devices ->
-            DeviceItem(devices)
+        items(devices) { device ->
+            DeviceItem(device)
         }
     }
 }

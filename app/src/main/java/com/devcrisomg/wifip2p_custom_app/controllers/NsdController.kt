@@ -9,8 +9,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
-import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
-import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
+import com.devcrisomg.wifip2p_custom_app.utils.GenericSharedFlowEventBus
 import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
 
 class NsdController(
@@ -18,7 +17,7 @@ class NsdController(
     ) {
     @SuppressLint("NewApi")
     val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
-    val onDeviceResolved: GenericStateFlowEventBus<DeviceInfoModel> = GenericStateFlowEventBus()
+    val onDeviceResolved: GenericSharedFlowEventBus<DeviceInfoModel> = GenericSharedFlowEventBus()
     val discoveryListener = @SuppressLint("NewApi")
     object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(serviceType: String) {

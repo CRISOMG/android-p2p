@@ -28,8 +28,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 //import com.devcrisomg.wifip2p_custom_app.components.DeviceDiscoveredEvent
 import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
-import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
-import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
+import com.devcrisomg.wifip2p_custom_app.utils.GenericSharedFlowEventBus
 import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
 
 @SuppressLint("HardwareIds")
@@ -65,7 +64,7 @@ class WifiDirectManagerV2(
 ) {
     val discoveredDevices = mutableStateListOf<WifiP2pDevice>()
     val discoveredServices = mutableStateMapOf<String, DeviceInfoModel>()
-    val onDeviceResolved: GenericStateFlowEventBus<DeviceInfoModel> = GenericStateFlowEventBus()
+    val onDeviceResolved: GenericSharedFlowEventBus<DeviceInfoModel> = GenericSharedFlowEventBus()
 
     val connectionInfo = mutableStateOf<WifiP2pInfo?>(null)
     val currGroupState = mutableStateOf<WifiP2pGroup?>(null)

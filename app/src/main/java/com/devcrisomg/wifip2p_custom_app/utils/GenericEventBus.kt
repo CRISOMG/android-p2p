@@ -43,19 +43,22 @@ open class __GenericStateFlowEventBus<T>(
     }
 }
 
-open class GenericStateFlowEventBus<T> {
+open class GenericSharedFlowEventBus<T> {
     private val _events = MutableSharedFlow<T>(
         replay = 0,  // No retiene eventos
         extraBufferCapacity = 64  // Buffer para backpressure
     )
     val events = _events.asSharedFlow()
 
-    fun publish(event: T): Boolean {
-//        _events.emit(event)
-        return _events.tryEmit(event)
-    }
+    /**
+     * Intenta publicar un evento sin suspender.
+     * @return true si el evento fue emitido exitosamente, false si el buffer está lleno
+     */
+    fun publish(event: T): Boolean = _events.tryEmit(event)
 
-    fun tryPublish(event: T): Boolean {
-        return _events.tryEmit(event)  // No suspende (retorna false si el buffer está lleno)
-    }
+    /**
+     * Versión suspendida para cuando necesitas garantizar la entrega del evento.
+     * Suspende la corrutina si el buffer está lleno hasta que haya espacio.
+     */
+    suspend fun publishSafeAsync(event: T) = _events.emit(event)
 }
