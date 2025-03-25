@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.wifi.WifiManager
-import android.net.wifi.p2p.WifiP2pDevice
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -28,13 +27,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 //import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -45,7 +45,6 @@ import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
 import com.devcrisomg.wifip2p_custom_app.components.DeviceList
 import com.devcrisomg.wifip2p_custom_app.components.DeviceViewModel
 import com.devcrisomg.wifip2p_custom_app.components.LogCatList
-import com.devcrisomg.wifip2p_custom_app.controllers.CustomUpdateManager
 import com.devcrisomg.wifip2p_custom_app.controllers.NsdController
 import com.devcrisomg.wifip2p_custom_app.controllers.PermissionManager
 import com.devcrisomg.wifip2p_custom_app.controllers.ProvideSocketManager
@@ -56,12 +55,9 @@ import com.devcrisomg.wifip2p_custom_app.controllers.WifiDirectManagerV2
 import com.devcrisomg.wifip2p_custom_app.controllers.WifiDirectService
 import com.devcrisomg.wifip2p_custom_app.controllers.WifiP2PManagerProvider
 import com.devcrisomg.wifip2p_custom_app.ui.theme.MyApplicationTheme
-import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
-import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
 import dagger.hilt.android.AndroidEntryPoint
-import java.io.File
+import kotlinx.coroutines.launch
 import javax.inject.Inject
-import javax.inject.Singleton
 
 
 @AndroidEntryPoint
@@ -132,19 +128,32 @@ class MainActivity : ComponentActivity() {
                 if (isServiceConnected.value) {
                     nsdController.startDiscovery()
                     nsdController.advertiseService()
-                    nsdController.onDeviceResolved.subscribe { event ->
-                        Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
-                        deviceEventBus.publish(event)
+                    LaunchedEffect(Unit) {
+                    launch {
+                            nsdController.onDeviceResolved.events.collect { event ->
+                                event.let {
+                                    Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
+                                    deviceEventBus.publish(event)
+                                }
+                            }
+                        }
+                        launch {
+                            wifiDirectManager.onDeviceResolved.events.collect { event ->
+                                event.let {
+                                    Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
+                                    deviceEventBus.publish(DeviceInfoModel(
+                                        name = event.name,
+                                        ip = event.ip,
+                                        ip_p2p = event.ip,
+                                        device = event.device
+                                    ))
+                                }
+                            }
+                        }
                     }
 
-                    wifiDirectManager.onDeviceResolved.subscribe { event ->
-                        Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
-                        deviceEventBus.publish(DeviceInfoModel(
-                            name = event.name,
-                            ip = event.ip,
-                            ip_p2p = event.ip,
-                        ))
-                    }
+
+
                     MainScreen(
                         wifiP2PManager = wifiDirectManager,
 //                        customUpdateManager,
@@ -199,6 +208,11 @@ fun ScreenA(navController: NavController,
         modifier = Modifier.fillMaxSize(),
     ) { innerPadding ->
 
+        val mainActivity = (LocalContext.current) as MainActivity
+        val viewModel: DeviceViewModel = hiltViewModel(mainActivity)
+        val h = viewModel.hashCode()
+        Log.d("DeviceViewModel", " ScreenA DeviceViewModel instantiated ${h}")
+
         val wifiP2PManager = WifiP2PManagerProvider.current
 
         Column(
@@ -247,6 +261,7 @@ fun ScreenA(navController: NavController,
                 CustomButton(
                     onClick = {
                         wifiP2PManager.discoveredServices.clear()
+                        viewModel.clearDevices()
                     }, text = "Clear Discovery", modifier = Modifier
                 )
 

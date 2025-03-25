@@ -7,6 +7,8 @@ import javax.inject.Inject
 @HiltAndroidApp
 class MyApp : Application() {
 
+//    @Inject
+//    lateinit var eventBus: DeviceEventBus
 //    companion object {
 //        lateinit var instance: MyApp
 //            private set

@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.util.Log
 import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
 import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
+import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
 import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
 
 class NsdController(
@@ -17,7 +18,7 @@ class NsdController(
     ) {
     @SuppressLint("NewApi")
     val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
-    val onDeviceResolved: GenericEventBus<DeviceInfoModel> = GenericEventBus()
+    val onDeviceResolved: GenericStateFlowEventBus<DeviceInfoModel> = GenericStateFlowEventBus()
     val discoveryListener = @SuppressLint("NewApi")
     object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(serviceType: String) {
@@ -32,7 +33,7 @@ class NsdController(
                 }
 
                 override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                    val ip = serviceInfo.hostAddresses[0].toString()
+                    val ip = serviceInfo.hostAddresses[0].toString().replace("/","")
                     val name = serviceInfo.serviceName
                     val txtRecords = serviceInfo.attributes // Obtén los registros TXT
                     val deviceNameBytes = txtRecords["deviceName"]

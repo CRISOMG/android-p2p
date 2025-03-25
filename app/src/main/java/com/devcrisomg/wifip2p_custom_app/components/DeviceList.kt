@@ -1,8 +1,6 @@
 package com.devcrisomg.wifip2p_custom_app.components
 
 import android.net.wifi.p2p.WifiP2pDevice
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,17 +21,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.devcrisomg.wifip2p_custom_app.MainActivity
 import com.devcrisomg.wifip2p_custom_app.controllers.SocketManagerProvider
 import com.devcrisomg.wifip2p_custom_app.controllers.WifiP2PManagerProvider
 import com.devcrisomg.wifip2p_custom_app.controllers.getMacAddress
-import com.devcrisomg.wifip2p_custom_app.utils.GenericEventBus
 import java.net.Socket
 import com.devcrisomg.wifip2p_custom_app.utils.GenericStateFlowEventBus
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 //import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import com.devcrisomg.wifip2p_custom_app.MainActivity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,30 +62,35 @@ class DeviceViewModel @Inject constructor(
     val resolvedDevices: LiveData<List<DeviceInfoModel>> get() = _resolvedDevices
     private val devicesMap = mutableMapOf<String, DeviceInfoModel>()
     init {
-        Log.d("DeviceViewModel", "DeviceViewModel instantiated")
+        val h = this.hashCode()
+        Log.d("DeviceViewModel", "DeviceViewModel instantiated ${h}")
         viewModelScope.launch {
-            eventBus.stateFlow.collect { event ->
-                event?.let {
-                    Log.d("GeneralLog", "DeviceViewModel recibió: ${it.name}")
-                    devicesMap[it.name ?: "desconocido"] = it
-                    _resolvedDevices.postValue(devicesMap.values.toList())
+            eventBus.events.collect { event ->
+                event.let {
+                    Log.d("GeneralLog", "DeviceViewModel recibió: ${it.name} ${h}")
+                    devicesMap[it.name ?: "unknown_${System.currentTimeMillis()}"] = it
+//                    _resolvedDevices.postValue(devicesMap.values.toList())
+                    _resolvedDevices.value = devicesMap.values.toList()
                 }
             }
         }
+    }
+
+    fun clearDevices() {
+        devicesMap.clear()
+        _resolvedDevices.value = emptyList()
     }
 }
 
 @Composable
 fun DeviceList(
     modifier: Modifier = Modifier,
-//    viewModel: DeviceViewModel = hiltViewModel()
 ) {
-//    val context  = ( LocalContext.current ) as MainActivity
-    val viewModel: DeviceViewModel = hiltViewModel()
+    val context  = ( LocalContext.current ) as MainActivity
+    val viewModel: DeviceViewModel = hiltViewModel(context)
+    Log.d("DeviceViewModel", " DeviceList DeviceViewModel instantiated ${viewModel.hashCode()}")
     val resolvedDevices by viewModel.resolvedDevices.observeAsState(emptyList())
     Log.d("GeneralLog", "DeviceList composed.")
-
-
     LazyColumn(modifier = modifier) {
         items(resolvedDevices) { devices ->
             DeviceItem(devices)
@@ -167,7 +169,10 @@ fun DeviceItem(
                 }
             }
             CustomButton(
-                onClick = { serviceInfo.device?.let { wifiP2PManager.connectToDevice(it, 15) } },
+                onClick = {
+                    Log.d("WiFiP2P", "Invitation request to ${serviceInfo.device?.deviceName}.")
+                    serviceInfo.device?.let { wifiP2PManager.Invite(it, 15) }
+                },
                 text = "Invite to Wifi Group"
             )
         }
