@@ -43,6 +43,7 @@ import javax.inject.Singleton
 
 data class DeviceInfoModel(
     var ip: String? = null,
+    var ip_list: MutableList<String?>? = null,
     var name: String? = null,
     var ip_p2p: String? = null,
     var ip_lan: String? = null,
@@ -63,7 +64,12 @@ class DeviceViewModel @Inject constructor(
 
     val resolvedDevices: StateFlow<List<DeviceInfoModel>> = eventBus.events
         .map { event ->
-            _devicesMap[event.name ?: "unknown_${System.currentTimeMillis()}"] = event
+            val key = event.name ?: "unknown_${System.currentTimeMillis()}"
+//            _devicesMap[event.name ?: "unknown_${System.currentTimeMillis()}"] = event
+            _devicesMap[key] = _devicesMap[key]?.copy(
+                ip = event.ip ?: _devicesMap[key]?.ip,
+                ip_lan = event.ip_lan ?: _devicesMap[key]?.ip_lan
+            ) ?: event
             _devicesMap.values.toList()
         }
         .stateIn(
@@ -97,7 +103,7 @@ fun DeviceList(
 
 @Composable
 fun DeviceItem(
-    serviceInfo: DeviceInfoModel,
+    deviceInfo: DeviceInfoModel,
     modifier: Modifier = Modifier
 ) {
 
@@ -105,11 +111,11 @@ fun DeviceItem(
     val myMacAddress = getMacAddress(context)
     val socketManager = SocketManagerProvider.current
     val wifiP2PManager = WifiP2PManagerProvider.current
-    val ip = serviceInfo.ip
-    val g_ip = serviceInfo.ip_p2p
-    val lan_ip = serviceInfo.ip_lan
+    val ip = deviceInfo.ip
+    val g_ip = deviceInfo.ip_p2p
+    val lan_ip = deviceInfo.ip_lan
     val used_ip = ip != null || lan_ip != null || g_ip != null
-    val macAddress = serviceInfo.device?.deviceAddress
+    val macAddress = deviceInfo.device?.deviceAddress
 
     val isConnected =
         ip?.let { socketManager.connectedSockets[it] }
@@ -121,16 +127,17 @@ fun DeviceItem(
         modifier = modifier
             .padding(8.dp)
     ) {
-        Text(text = "Name: ${serviceInfo.name}")
+        Text(text = "Name: ${deviceInfo.name}")
         Text(text = "IP: $ip")
         Text(text = "IP P2P: $g_ip")
         Text(text = "IP LAN: $lan_ip")
-        Text(text = "MY GROUP IP: ${socketManager.socketIp.value}")
-        Text(text = "GROUP STATUS: ${serviceInfo.group_status.value?.let {
-            wifiP2PManager.getDeviceStatusDescription(
-                it
-            )
-        }}")
+        Text(text = "IP List: ${deviceInfo.ip_list?.filter { it?.contains("192.168.") ?: false }}")
+//        Text(text = "MY GROUP IP: ${socketManager.socketIp.value}")
+//        Text(text = "GROUP STATUS: ${deviceInfo.group_status.value?.let {
+//            wifiP2PManager.getDeviceStatusDescription(
+//                it
+//            )
+//        }}")
         Text(text = "Server Socket: $isConnected")
 //        Text(text = "Client Socket: ${
 //            socketManager.connectedClients.find { client ->
@@ -165,8 +172,8 @@ fun DeviceItem(
             }
             CustomButton(
                 onClick = {
-                    Log.d("WiFiP2P", "Invitation request to ${serviceInfo.device?.deviceName}.")
-                    serviceInfo.device?.let { wifiP2PManager.Invite(it, 15) }
+                    Log.d("WiFiP2P", "Invitation request to ${deviceInfo.device?.deviceName}.")
+                    deviceInfo.device?.let { wifiP2PManager.Invite(it, 15) }
                 },
                 text = "Invite to Wifi Group"
             )

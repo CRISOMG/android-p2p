@@ -20,6 +20,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -30,6 +31,8 @@ import androidx.compose.runtime.mutableStateOf
 import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
 import com.devcrisomg.wifip2p_custom_app.utils.GenericSharedFlowEventBus
 import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
 @SuppressLint("HardwareIds")
 fun getMacAddress(context: Context): String? {
@@ -69,13 +72,18 @@ class WifiDirectManagerV2(
     val connectionInfo = mutableStateOf<WifiP2pInfo?>(null)
     val currGroupState = mutableStateOf<WifiP2pGroup?>(null)
     fun handleOnActionListenerFailure(reason: Int) {
-        when (reason) {
-            WifiP2pManager.BUSY -> Log.e("WiFiP2P", "El dispositivo está ocupado.")
-            WifiP2pManager.ERROR -> Log.e("WiFiP2P", "Ocurrió un error inesperado.")
-            WifiP2pManager.P2P_UNSUPPORTED -> Log.e(
-                "WiFiP2P", "Wi-Fi Direct no está soportado en este dispositivo."
-            )
+        val toast = { ms: String ->
+            Toast.makeText(context, ms, Toast.LENGTH_SHORT).show()
         }
+        var message: String = "Error no manejado en handleOnActionListenerFailure"
+        when (reason) {
+            WifiP2pManager.BUSY -> message ="El dispositivo está ocupado."
+            WifiP2pManager.ERROR -> message ="Ocurrió un error inesperado. ${reason}"
+            WifiP2pManager.P2P_UNSUPPORTED -> message =  "Wi-Fi Direct no está soportado en este dispositivo."
+
+        }
+        toast(message)
+        Log.e("WiFiP2P", "El dispositivo está ocupado.")
     }
 
     fun getDeviceStatusDescription(status: Int): String {
@@ -108,6 +116,7 @@ class WifiDirectManagerV2(
     }
 
     fun removePersistentGroups() {
+        return;
         try {
             val method = WifiP2pManager::class.java.getMethod(
                 "deletePersistentGroup",
@@ -499,15 +508,12 @@ class WifiDirectService : Service() {
             (getSystemService(WIFI_P2P_SERVICE) as WifiP2pManager).initialize(
                 applicationContext, mainLooper, null
             ),
-//            permissionManager = PermissionManager(applicationContext)
         )
         wifiDirectManager.registerReceivers()
         wifiDirectManager.advertiseService("MyCustomTag")
         wifiDirectManager.discoverServices()
-
         wifiDirectManager.startDiscoveryLoop()
     }
-
     override fun onDestroy() {
         super.onDestroy()
         wifiDirectManager.disconnect()

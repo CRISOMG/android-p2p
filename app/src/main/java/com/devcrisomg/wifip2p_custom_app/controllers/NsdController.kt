@@ -11,7 +11,21 @@ import android.util.Log
 import com.devcrisomg.wifip2p_custom_app.components.DeviceInfoModel
 import com.devcrisomg.wifip2p_custom_app.utils.GenericSharedFlowEventBus
 import com.devcrisomg.wifip2p_custom_app.utils.getLocalIpAddress
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
+fun getWifiDirectIp(): List<String?>? {
+    return try {
+        val netIL= NetworkInterface.getNetworkInterfaces().toList();
+            netIL
+            .firstOrNull { it.name.startsWith("") }
+            ?.inetAddresses
+            ?.toList()?.filterIsInstance<Inet4Address>()?.map { it.hostAddress }
+    } catch (e: Exception) {
+        Log.e("NsdManager", "Error obteniendo la IP de Wi-Fi Direct", e)
+        null
+    }
+}
 class NsdController(
     private val context: Context,
     ) {
@@ -19,6 +33,7 @@ class NsdController(
     val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     val onDeviceResolved: GenericSharedFlowEventBus<DeviceInfoModel> = GenericSharedFlowEventBus()
     val discoveryListener = @SuppressLint("NewApi")
+
     object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(serviceType: String) {
             Log.d("NsdManager", "Descubrimiento iniciado")
@@ -32,17 +47,24 @@ class NsdController(
                 }
 
                 override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                    val ip = serviceInfo.hostAddresses[0].toString().replace("/","")
+
+                    val hostAddresses = serviceInfo.hostAddresses.filterIsInstance<Inet4Address>().map { it.hostAddress }
+                    val wifiDirectIp = getWifiDirectIp()?.firstOrNull { (it?.startsWith("192.168.")) as Boolean }
+                    var ip_lan = (hostAddresses.firstOrNull { (it?.startsWith("192.168.")) as Boolean } ?: "Desconocida").replace("/","")
+                    var ip_p2p = (hostAddresses.firstOrNull { (it?.startsWith("192.168.49")) as Boolean } ?: "Desconocida").replace("/","")
                     val name = serviceInfo.serviceName
                     val txtRecords = serviceInfo.attributes // Obtén los registros TXT
                     val deviceNameBytes = txtRecords["deviceName"]
                     val deviceName = deviceNameBytes?.let { String(it, Charsets.UTF_8) }
-                    Log.d("NsdManager", "Servicio de ${deviceName} resuelto: ${serviceInfo.hostAddresses[0]}:${serviceInfo.port}")
+                    Log.d("NsdManager", "Servicio de ${deviceName ?: name} resuelto: ${serviceInfo.hostAddresses[0]}:${serviceInfo.port}")
+                    Log.d("NsdManager", "${hostAddresses.toList()}")
 
                     onDeviceResolved.publish(DeviceInfoModel(
-                        name= name,
-                        ip = ip,
-                        ip_lan = ip
+                        name= deviceName ?: name,
+                        ip = ip_p2p,
+                        ip_lan = ip_lan,
+                        ip_p2p= ip_p2p,
+                        ip_list = hostAddresses.toMutableList()
                     ))
                 }
             })

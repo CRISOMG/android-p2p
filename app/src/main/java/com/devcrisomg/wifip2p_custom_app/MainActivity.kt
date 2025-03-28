@@ -126,13 +126,14 @@ class MainActivity : ComponentActivity() {
                 darkTheme = true, dynamicColor = false
             ) {
                 if (isServiceConnected.value) {
+
+                    LaunchedEffect(Unit) {
                     nsdController.startDiscovery()
                     nsdController.advertiseService()
-                    LaunchedEffect(Unit) {
                     launch {
                             nsdController.onDeviceResolved.events.collect { event ->
                                 event.let {
-                                    Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}")
+                                    Log.d("NsdManager", "nsdController.onDeviceResolved.subscribe ${event.name}  ${event.ip}")
                                     deviceEventBus.publish(event)
                                 }
                             }
@@ -140,7 +141,7 @@ class MainActivity : ComponentActivity() {
                         launch {
                             wifiDirectManager.onDeviceResolved.events.collect { event ->
                                 event.let {
-                                    Log.d("NsdManager", "wifiDirectManager.onDeviceResolved.subscribe ${event.name}")
+                                    Log.d("WiFiP2P", "wifiDirectManager.onDeviceResolved.subscribe ${event.name} ${event.ip}")
                                     deviceEventBus.publish(DeviceInfoModel(
                                         name = event.name,
                                         ip = event.ip,
@@ -171,10 +172,10 @@ class MainActivity : ComponentActivity() {
 //        nsdController.advertiseService()
 //        nsdController.startDiscovery()
         if (isServiceConnected.value) {
-            wifiDirectManager.registerReceivers()
-            wifiDirectManager.advertiseService("MyCustomTag")
-            wifiDirectManager.discoverServices()
-            wifiDirectManager.startDiscoveryLoop()
+//            wifiDirectManager.registerReceivers()
+//            wifiDirectManager.advertiseService("MyCustomTag")
+//            wifiDirectManager.discoverServices()
+//            wifiDirectManager.startDiscoveryLoop()
         }
     }
 
